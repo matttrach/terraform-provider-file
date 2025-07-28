@@ -59,6 +59,7 @@
               gitleaks
               gnupg
               go
+              golangci-lint
               golint
               gotestfmt
               gotestsum
@@ -89,10 +90,10 @@
           devShells.default = pkgs.mkShell {
             buildInputs = [ devShellPackage ];
             shellHook = ''
-              while read word; do echo -e "*$word\n#" | aspell -a >/dev/null; done < aspell_custom.txt
+              while read word; do echo -e "*$word\n#" | aspell --dont-validate-words -a >/dev/null; done < aspell_custom.txt
               homebin=$HOME/bin;
               install -d $homebin;
-              tfswitch -b $homebin/terraform 1.5.7 &>/dev/null;
+              tfswitch -b $homebin/terraform 1.12.2 &>/dev/null;
               export PATH="$homebin:$PATH";
               export PS1="nix:# ";
             '';

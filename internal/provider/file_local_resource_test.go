@@ -6,22 +6,22 @@ import (
 	"context"
 	"testing"
 
-	"github.com/hashicorp/terraform-plugin-framework/provider"
+	"github.com/hashicorp/terraform-plugin-framework/resource"
 )
 
-func TestProviderMetadata(t *testing.T) {
+func TestLocalResourceMetadata(t *testing.T) {
 	testCases := []struct {
 		name string
-		fit  FileProvider
-		want provider.MetadataResponse
+		fit  LocalResource
+		want resource.MetadataResponse
 	}{
-		{"Metadata name", FileProvider{version: "test"}, provider.MetadataResponse{TypeName: "file", Version: "test"}},
+		{"Metadata name", LocalResource{}, resource.MetadataResponse{TypeName: "file_local"}},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.Background()
-			req := provider.MetadataRequest{}
-			res := provider.MetadataResponse{}
+			req := resource.MetadataRequest{ProviderTypeName: "file"}
+			res := resource.MetadataResponse{}
 			tc.fit.Metadata(ctx, req, &res)
 			got := res
 			if got != tc.want {
