@@ -2,3 +2,7 @@ kubernetes
 config
 git
 variablize
+oci
+eks
+aks
+json
