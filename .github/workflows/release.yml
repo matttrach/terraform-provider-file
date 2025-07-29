@@ -19,7 +19,7 @@ jobs:
           release-type: go
       # These run only if a release PR was opened or modified, so not when the PR is merged
       - uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1 https://github.com/actions/github-script/commits/main
-        if: steps.release-please.outputs.prs_created
+        if: steps.release-please.outputs.pr
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           script: |
@@ -30,38 +30,39 @@ jobs:
               body: "Please make sure e2e tests pass before merging this PR! \n ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
             })
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        if: steps.release-please.outputs.prs_created
+        if: steps.release-please.outputs.pr
       - uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
-        if: steps.release-please.outputs.prs_created
+        if: steps.release-please.outputs.pr
         with:
           go-version-file: 'go.mod'
           cache: true
       - name: run-unit-tests
-        if: steps.release-please.outputs.prs_created
+        if: steps.release-please.outputs.pr
         run: make test
       - name: install-nix
-        if: steps.release-please.outputs.prs_created
+        if: steps.release-please.outputs.pr
         run: |
           curl -L https://nixos.org/nix/install | sh
           source /home/runner/.nix-profile/etc/profile.d/nix.sh
           nix --version
           which nix
       - name: run-acc-tests
-        if: steps.release-please.outputs.prs_created
+        if: steps.release-please.outputs.pr
         shell: /home/runner/.nix-profile/bin/nix develop --ignore-environment --extra-experimental-features nix-command --extra-experimental-features flakes --keep HOME --keep NIX_SSL_CERT_FILE --keep NIX_ENV_LOADED --keep TERM --command bash -e {0}
         run: make testacc
 
       # These run after release-please generates a release, so when the release PR is merged
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        if: steps.release-please.outputs.releases_created
+        if: steps.release-please.outputs.version
         with:
           fetch-depth: 0
       - uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
-        if: steps.release-please.outputs.releases_created
+        if: steps.release-please.outputs.version
         with:
           go-version-file: 'go.mod'
           cache: true
       - name: import_gpg_key
+        if: steps.release-please.outputs.version
         id: import_gpg_key
         env:
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
@@ -88,7 +89,7 @@ jobs:
           FINGERPRINT="$(gpg --list-secret-keys --with-colons "${GPG_KEY_ID}" | grep fpr | cut -d: -f10)"
           echo "fingerprint=$FINGERPRINT" >> "$GITHUB_OUTPUT"
       - name: Run GoReleaser
-        if: steps.release-please.outputs.releases_created
+        if: steps.release-please.outputs.version
         uses: goreleaser/goreleaser-action@9c156ee8a17a598857849441385a2041ef570552 # v6.3.0
         with:
           args: release --clean
