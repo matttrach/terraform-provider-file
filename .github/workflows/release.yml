@@ -86,9 +86,6 @@ jobs:
 
           echo "Importing gpg key"
           echo "${GPG_KEY}" | gpg --import --batch > /dev/null || { echo "Failed to import GPG key"; exit 1; }
-          FINGERPRINT="$(gpg --list-secret-keys --with-colons "${GPG_KEY_ID}" | grep fpr | head -n1 | cut -d: -f10 )"
-          echo "gpg fingerprint is ${FINGERPRINT}"
-          echo "fingerprint=${FINGERPRINT}" >> "$GITHUB_OUTPUT"
       - name: Run GoReleaser
         if: steps.release-please.outputs.version
         uses: goreleaser/goreleaser-action@9c156ee8a17a598857849441385a2041ef570552 # v6.3.0
@@ -96,5 +93,5 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GPG_FINGERPRINT: ${{ steps.import_gpg_key.outputs.fingerprint }}
+          GPG_KEY_ID: ${{ secrets.GPG_KEY_ID }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
