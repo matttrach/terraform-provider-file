@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.5](https://github.com/matttrach/terraform-provider-file/compare/v0.0.4...v0.0.5) (2025-07-29)
+
+
+### Bug Fixes
+
+* remove extra quotes in fingerprint ([#18](https://github.com/matttrach/terraform-provider-file/issues/18)) ([ddb354e](https://github.com/matttrach/terraform-provider-file/commit/ddb354ed77cce3bffd334291f6cb755cd0bfa7bd))
+
 ## [0.0.4](https://github.com/matttrach/terraform-provider-file/compare/v0.0.3...v0.0.4) (2025-07-29)
 
 
