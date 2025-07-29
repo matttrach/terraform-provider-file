@@ -87,8 +87,8 @@ jobs:
           echo "Importing gpg key"
           echo "${GPG_KEY}" | gpg --import --batch > /dev/null || { echo "Failed to import GPG key"; exit 1; }
           FINGERPRINT="$(gpg --list-secret-keys --with-colons "${GPG_KEY_ID}" | grep fpr | cut -d: -f10)"
-          echo 'gpg fingerprint is "'$FINGERPRINT'"'
-          echo 'fingerprint="'$FINGERPRINT'"' >> "$GITHUB_OUTPUT"
+          echo 'gpg fingerprint is "'"${FINGERPRINT}"'"'
+          echo 'fingerprint="'"${FINGERPRINT}"'"' >> "$GITHUB_OUTPUT"
       - name: Run GoReleaser
         if: steps.release-please.outputs.version
         uses: goreleaser/goreleaser-action@9c156ee8a17a598857849441385a2041ef570552 # v6.3.0
