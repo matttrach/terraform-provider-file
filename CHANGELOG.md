@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.2](https://github.com/matttrach/terraform-provider-file/compare/v0.0.1...v0.0.2) (2025-07-29)
+
+
+### Bug Fixes
+
+* add new public key ([92edb1c](https://github.com/matttrach/terraform-provider-file/commit/92edb1cbccffa6ec0b8396f2847fa960aa057d4c))
+
 ## 0.0.1 (2025-07-29)
 
 
