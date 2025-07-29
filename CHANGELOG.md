@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.4](https://github.com/matttrach/terraform-provider-file/compare/v0.0.3...v0.0.4) (2025-07-29)
+
+
+### Bug Fixes
+
+* select the first fingerprint ([#16](https://github.com/matttrach/terraform-provider-file/issues/16)) ([7559dc9](https://github.com/matttrach/terraform-provider-file/commit/7559dc95cd519cad6298b5756a19ab23db8aa7ac))
+
 ## [0.0.3](https://github.com/matttrach/terraform-provider-file/compare/v0.0.2...v0.0.3) (2025-07-29)
 
 
