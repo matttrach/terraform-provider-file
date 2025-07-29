@@ -1,18 +1,51 @@
 # Terraform Provider testing workflow.
 name: Tests
 
-# This GitHub action runs your tests for each pull request and push.
-# Optionally, you can turn it on using a schedule for regular testing.
 on:
   pull_request:
     paths-ignore:
       - 'README.md'
 
-# Testing only needs permissions to read the repository contents.
 permissions:
   contents: read
 
 jobs:
+  # Make sure any changes to workflows are linted
+  actionlint:
+    name: 'Lint Workflows'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: install-nix
+        run: |
+          curl -L https://nixos.org/nix/install | sh
+          source /home/runner/.nix-profile/etc/profile.d/nix.sh
+          nix --version
+          which nix
+      - name: action lint
+        shell: /home/runner/.nix-profile/bin/nix develop --ignore-environment --extra-experimental-features nix-command --extra-experimental-features flakes --keep HOME --keep NIX_SSL_CERT_FILE --keep NIX_ENV_LOADED --keep TERM --command bash -e {0}
+        run: actionlint
+
+  # Make sure any changes to workflows are linted
+  tflint:
+    name: 'Lint Terraform'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: install-nix
+        run: |
+          curl -L https://nixos.org/nix/install | sh
+          source /home/runner/.nix-profile/etc/profile.d/nix.sh
+          nix --version
+          which nix
+      - name: tflint
+        shell: /home/runner/.nix-profile/bin/nix develop --ignore-environment --extra-experimental-features nix-command --extra-experimental-features flakes --keep HOME --keep NIX_SSL_CERT_FILE --keep NIX_ENV_LOADED --keep TERM --command bash -e {0}
+        run: tflint --recursive
+
   # Ensure project builds before running testing matrix
   build:
     name: Build
@@ -31,6 +64,7 @@ jobs:
         with:
           version: latest
 
+  # Ensure generate was run before running testing matrix
   generate:
     runs-on: ubuntu-latest
     steps:
@@ -49,10 +83,14 @@ jobs:
           git diff --compact-summary --exit-code || \
             (echo; echo "Unexpected difference in directories after code generation. Run 'make generate' command and commit."; exit 1)
 
-  # Run acceptance tests in a matrix with Terraform CLI versions
+  # Run Unit tests in a matrix with Terraform CLI versions.
+  # Acceptance tests will be run on merge and must pass before release.
   test:
-    name: Terraform Provider Acceptance Tests
-    needs: build
+    name: Terraform Provider Unit Tests
+    needs:
+      - build
+      - generate
+      - tflint
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
@@ -78,3 +116,6 @@ jobs:
       - run: go mod download
       - run: make test
         timeout-minutes: 10
+      - run: terraform fmt -check -recursive
+      - run: pushd ./examples/use-cases/basic; terraform init -input=false; popd
+      - run: pushd ./examples/use-cases/basic; terraform validate -no-color; popd
