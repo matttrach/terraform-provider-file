@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.6](https://github.com/matttrach/terraform-provider-file/compare/v0.0.5...v0.0.6) (2025-07-29)
+
+
+### Bug Fixes
+
+* typo ([740a76b](https://github.com/matttrach/terraform-provider-file/commit/740a76b8cacdacb1a2ec842f8bece3cd98ea3542))
+
 ## [0.0.5](https://github.com/matttrach/terraform-provider-file/compare/v0.0.4...v0.0.5) (2025-07-29)
 
 
