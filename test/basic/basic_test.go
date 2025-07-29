@@ -3,6 +3,7 @@
 package basic
 
 import (
+	// "os"
 	"path/filepath"
 	"testing"
 
@@ -20,8 +21,8 @@ func TestBasic(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error getting git root directory: %v", err)
 	}
-	exampleDir := repoRoot + "/examples/use-cases/" + directory
-	testDir := repoRoot + "/test/data"
+	exampleDir := filepath.Join(repoRoot, "examples", "use-cases", directory)
+	testDir := filepath.Join(repoRoot, "test", "data", id)
 
 	err = util.Setup(t, id, "test/data")
 	if err != nil {
@@ -30,18 +31,22 @@ func TestBasic(t *testing.T) {
 		t.Fatalf("Error creating test data directories: %s", err)
 	}
 
+	statePath := filepath.Join(testDir, "tfstate")
 	terraformOptions := terraform.WithDefaultRetryableErrors(t, &terraform.Options{
 		TerraformDir: exampleDir,
-		// Variables to pass to our Terraform code using -var options
+		// Variables to pass to our Terraform code using -var options.
 		Vars: map[string]interface{}{
 			// "identifier": id,
 			// "owner":      owner,
 		},
-		// Environment variables to set when running Terraform
+		// Variables to pass to our Terraform code using a backend config file.
+		BackendConfig: map[string]interface{}{
+			"path": statePath,
+		},
+		// Environment variables to set when running Terraform.
 		EnvVars: map[string]string{
 			"TF_DATA_DIR":         testDir,
 			"TF_IN_AUTOMATION":    "1",
-			"TF_CLI_ARGS_init":    "-no-color -backend-config=\"path=\"" + testDir + "\"",
 			"TF_CLI_ARGS_plan":    "-no-color",
 			"TF_CLI_ARGS_apply":   "-no-color",
 			"TF_CLI_ARGS_destroy": "-no-color",

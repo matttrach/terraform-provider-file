@@ -21,6 +21,8 @@ test:
 testacc: build
 	export REPO_ROOT="../../../."; \
 	export TF_CLI_CONFIG_FILE="../../../test/.terraformrc"; \
-	gotestsum --format=standard-verbose ./test/... -- -failfast=1 -timeout=300m;
+	pushd ./test; \
+	gotestsum --format=standard-verbose ./... -- -failfast=1 -timeout=300m; \
+	popd;
 
 .PHONY: fmt lint build install generate test testacc
