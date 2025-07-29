@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.3](https://github.com/matttrach/terraform-provider-file/compare/v0.0.2...v0.0.3) (2025-07-29)
+
+
+### Bug Fixes
+
+* print fingerprint ([#14](https://github.com/matttrach/terraform-provider-file/issues/14)) ([b5ecaa0](https://github.com/matttrach/terraform-provider-file/commit/b5ecaa0d58468c6c0a9fc56a5364fce67b95230e))
+
 ## [0.0.2](https://github.com/matttrach/terraform-provider-file/compare/v0.0.1...v0.0.2) (2025-07-29)
 
 
