@@ -86,7 +86,7 @@ jobs:
 
           echo "Importing gpg key"
           echo "${GPG_KEY}" | gpg --import --batch > /dev/null || { echo "Failed to import GPG key"; exit 1; }
-          FINGERPRINT="$(gpg --list-secret-keys --with-colons "${GPG_KEY_ID}" | grep fpr | cut -d: -f10)"
+          FINGERPRINT="$(gpg --list-secret-keys --with-colons "${GPG_KEY_ID}" | grep fpr | cut -d: -f10 | head -n1)"
           echo 'gpg fingerprint is "'"${FINGERPRINT}"'"'
           echo 'fingerprint="'"${FINGERPRINT}"'"' >> "$GITHUB_OUTPUT"
       - name: Run GoReleaser
