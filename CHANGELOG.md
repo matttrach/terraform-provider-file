@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.8](https://github.com/matttrach/terraform-provider-file/compare/v0.0.7...v0.0.8) (2025-07-30)
+
+
+### Bug Fixes
+
+* add more words to list ([#24](https://github.com/matttrach/terraform-provider-file/issues/24)) ([f12db00](https://github.com/matttrach/terraform-provider-file/commit/f12db0002389e2367b44d201be20a480478c1c53))
+
 ## [0.0.7](https://github.com/matttrach/terraform-provider-file/compare/v0.0.6...v0.0.7) (2025-07-29)
 
 
