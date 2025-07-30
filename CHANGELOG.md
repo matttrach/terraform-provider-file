@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.9](https://github.com/matttrach/terraform-provider-file/compare/v0.0.8...v0.0.9) (2025-07-30)
+
+
+### Bug Fixes
+
+* try using raw secrets ([#26](https://github.com/matttrach/terraform-provider-file/issues/26)) ([10a320f](https://github.com/matttrach/terraform-provider-file/commit/10a320f5e1eca8a3b6f11b34daf83db70ee55dd4))
+
 ## [0.0.8](https://github.com/matttrach/terraform-provider-file/compare/v0.0.7...v0.0.8) (2025-07-30)
 
 
