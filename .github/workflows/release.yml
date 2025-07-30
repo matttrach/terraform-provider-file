@@ -76,9 +76,9 @@ jobs:
           trap cleanup EXIT TERM
 
           # sanitize variables
-          GPG_PASSPHRASE="$(echo "${GPG_PASSPHRASE}" | xargs)"
-          GPG_KEY_ID="$(echo "${GPG_KEY_ID}" | xargs)"
-          GPG_KEY="$(echo -n "${GPG_KEY}" | awk '/-----BEGIN PGP PRIVATE KEY BLOCK-----/,/-----END PGP PRIVATE KEY BLOCK-----/')"
+          #GPG_PASSPHRASE="$(echo "${GPG_PASSPHRASE}" | xargs)"
+          #GPG_KEY_ID="$(echo "${GPG_KEY_ID}" | xargs)"
+          #GPG_KEY="$(echo -n "${GPG_KEY}" | awk '/-----BEGIN PGP PRIVATE KEY BLOCK-----/,/-----END PGP PRIVATE KEY BLOCK-----/')"
 
           if [ -z "${GPG_PASSPHRASE}" ]; then echo "gpg passphrase empty"; exit 1; fi
           if [ -z "${GPG_KEY_ID}" ]; then echo "key id empty"; exit 1; fi
