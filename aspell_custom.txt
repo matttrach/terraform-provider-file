@@ -6,3 +6,7 @@ oci
 eks
 aks
 json
+goreleaser
+terraform
+tflint
+gorelease
