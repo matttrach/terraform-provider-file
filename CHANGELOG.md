@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.10](https://github.com/matttrach/terraform-provider-file/compare/v0.0.9...v0.0.10) (2025-07-30)
+
+
+### Bug Fixes
+
+* use a new public key for signing ([#28](https://github.com/matttrach/terraform-provider-file/issues/28)) ([d2f3e64](https://github.com/matttrach/terraform-provider-file/commit/d2f3e64f696200fa1ac6ba78f5dd20c3bbf4325e))
+
 ## [0.0.9](https://github.com/matttrach/terraform-provider-file/compare/v0.0.8...v0.0.9) (2025-07-30)
 
 
