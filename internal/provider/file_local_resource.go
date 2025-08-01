@@ -25,7 +25,7 @@ import (
 
 // The `var _` is a special Go construct that results in an unusable variable.
 // The purpose of these lines is to make sure our LocalFileResource correctly implements the `resource.Resource“ interface.
-// These will fail a compilation time if the implementation is not satisfied.
+// These will fail at compilation time if the implementation is not satisfied.
 var _ resource.Resource = &LocalResource{}
 var _ resource.ResourceWithImportState = &LocalResource{}
 
@@ -104,8 +104,8 @@ func (r *LocalResource) Configure(ctx context.Context, req resource.ConfigureReq
 	}
 }
 
-// Create the local file here.
 func (r *LocalResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+	tflog.Debug(ctx, fmt.Sprintf("Request Object: %v", req))
 	var data LocalResourceModel
 
 	// Set up diagnostics and fill data with plan data.
@@ -113,88 +113,165 @@ func (r *LocalResource) Create(ctx context.Context, req resource.CreateRequest, 
 	if resp.Diagnostics.HasError() {
 		return
 	}
-
-	localFilePath := filepath.Join(data.Directory.String(), data.Name.String())
-
-	perm, err := strconv.ParseUint(data.Mode.String(), 8, 32)
+	name := data.Name.ValueString()
+	directory := data.Directory.ValueString()
+	contents := data.Contents.ValueString()
+	modeString := data.Mode.ValueString()
+	hmacSecretKey := data.HmacSecretKey.ValueString()
+	localFilePath := filepath.Join(directory, name)
+	modeInt, err := strconv.ParseUint(modeString, 8, 32)
 	if err != nil {
 		tflog.Error(ctx, "Error reading file mode: "+err.Error())
 		return
 	}
-	fileMode := os.FileMode(perm)
 
-	// Create the file here.
-	err = os.WriteFile(
-		localFilePath,
-		[]byte(data.Contents.String()),
-		fileMode,
-	)
-	if err != nil {
+	if err = os.WriteFile(localFilePath, []byte(contents), os.FileMode(modeInt)); err != nil {
 		tflog.Error(ctx, "Error writing file: "+err.Error())
 		return
 	}
 
 	// Generate a secure unique ID for the file //
-
-	// env overrides the config
-	secureKey := os.Getenv("TF_FILE_HMAC_SECRET_KEY")
-	if secureKey == "" {
-		// the hmac_secret_key has a default value, so it can't be null after this
-		secureKey = data.HmacSecretKey.String()
-	}
-	id, err := generateHMACFile(localFilePath, []byte(secureKey))
+	id, err := calculateId(localFilePath, hmacSecretKey)
 	if err != nil {
 		tflog.Error(ctx, "Error generating file id: "+err.Error())
 		return
 	}
-
 	data.Id = types.StringValue(id)
-
-	tflog.Trace(ctx, "created file local resource")
-
-	// Save data into Terraform state.
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
+	tflog.Debug(ctx, fmt.Sprintf("Response Object: %v", *resp))
 }
 
+// Some objects in Terraform can't be fully owned by the config.
+// When objects can't be owned by Terraform the read function updates the Terraform state.
+// In this case, for now, we expect the file not to change without our knowledge.
+// That means we don't need to read the file's contents or anything like that.
 func (r *LocalResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
-	var data LocalResourceModel
+	tflog.Debug(ctx, fmt.Sprintf("Request Object: %v", req))
 
-	// Read Terraform prior state data into the model.
-	resp.Diagnostics.Append(req.State.Get(ctx, &data)...)
-
+	var state LocalResourceModel
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
+	// sName      := state.Name.ValueString()
+	// sDirectory := state.Directory.ValueString()
 
-	// Save updated data into Terraform state.
-	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
+	// // If the file doesn't exist on disk, then we need to (re)create it
+	// if _, err := os.Stat(filepath.Join(directory, name)); os.IsNotExist(err) {
+	// 	resp.State.RemoveResource(ctx)
+	// 	return
+	// }
+
+	// If Possible, we should avoid reading the file into memory (tell don't ask)
+
+	// // If the contents doesn't match what we have in state, then we need to (re)create
+	// contents, err := os.ReadFile(filepath.Join(directory, name))
+	// if err != nil {
+	//   tflog.Error(ctx, "Error reading file: " + err.Error())
+	//   return
+	// }
+	// if string(contents) != data.Contents.ValueString() {
+	//   resp.State.RemoveResource(ctx)
+	//   return
+	// }
+
+	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
+	tflog.Debug(ctx, fmt.Sprintf("Response Object: %v", *resp))
 }
 
+// For now, we are assuming Terraform has complete control over the file
+// This means we don't need know anything about the actual file for updates, we just change the file if the plan doesn't match the state.
+// The plan has the authority here, state and reality needs to match the plan.
 func (r *LocalResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var data LocalResourceModel
+	tflog.Debug(ctx, fmt.Sprintf("Request Object: %v", req))
 
-	// Read Terraform plan data into the model.
-	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
+	var plan LocalResourceModel
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
+	pName := plan.Name.ValueString()
+	pDirectory := plan.Directory.ValueString()
+	pMode := plan.Mode.ValueString()
+	pContents := plan.Contents.ValueString()
+	pFilePath := filepath.Join(pDirectory, pName)
 
-	// Update File Here
+	var state LocalResourceModel
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	sName := state.Name.ValueString()
+	sDirectory := state.Directory.ValueString()
+	sMode := state.Mode.ValueString()
+	sContents := state.Contents.ValueString()
+	sFilePath := filepath.Join(sDirectory, sName)
 
-	// Save updated data into Terraform state.
-	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
+	// If the plan's path doesn't match what is in state then we should move the file to its new path and update the state.
+	if pFilePath != sFilePath {
+		if err := os.Rename(sFilePath, pFilePath); err != nil {
+			tflog.Error(ctx, "Error moving file: "+err.Error())
+			return
+		}
+		if sName != pName {
+			state.Name = types.StringValue(pName)
+		}
+		if sDirectory != pDirectory {
+			state.Directory = types.StringValue(pDirectory)
+		}
+	}
+
+	// If the plan's mode doesn't match what is in state then we should change the file's mode and update the state.
+	if pMode != sMode {
+		modeInt, err := strconv.ParseUint(pMode, 8, 32)
+		if err != nil {
+			tflog.Error(ctx, "Error reading file mode: "+err.Error())
+			return
+		}
+		if err := os.Chmod(pFilePath, os.FileMode(modeInt)); err != nil {
+			tflog.Error(ctx, "Error changing file mode: "+err.Error())
+			return
+		}
+		state.Mode = types.StringValue(pMode)
+	}
+
+	// If the plan's contents don't match what is in state then we should write the new content to the file and update the state.
+	if pContents != sContents {
+		modeInt, err := strconv.ParseUint(pMode, 8, 32)
+		if err != nil {
+			tflog.Error(ctx, "Error reading file mode: "+err.Error())
+			return
+		}
+		if err = os.WriteFile(pFilePath, []byte(pContents), os.FileMode(modeInt)); err != nil {
+			tflog.Error(ctx, "Error writing file: "+err.Error())
+			return
+		}
+		state.Contents = types.StringValue(pContents)
+	}
+
+	// Save updated state into Terraform state.
+	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
+	tflog.Debug(ctx, fmt.Sprintf("Response Object: %v", *resp))
 }
 
 func (r *LocalResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
-	var data LocalResourceModel
+	tflog.Debug(ctx, fmt.Sprintf("Request Object: %v", req))
 
-	// Read Terraform prior state data into the model.
-	resp.Diagnostics.Append(req.State.Get(ctx, &data)...)
+	var state LocalResourceModel
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	// Delete the file here
+	name := state.Name.ValueString()
+	directory := state.Directory.ValueString()
+	localFilePath := filepath.Join(directory, name)
+	if err := os.Remove(localFilePath); err != nil {
+		tflog.Error(ctx, "Failed to delete file: "+err.Error())
+		return
+	}
+
+	tflog.Debug(ctx, fmt.Sprintf("Response Object: %v", *resp))
 }
 
 func (r *LocalResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
@@ -204,14 +281,20 @@ func (r *LocalResource) ImportState(ctx context.Context, req resource.ImportStat
 // **** Internal Functions **** //
 
 // generates an HMAC-SHA256 hash of a file using a secret key.
-func generateHMACFile(filePath string, key []byte) (string, error) {
+func calculateId(filePath string, hmacSecretKey string) (string, error) {
+	// env overrides the config
+	secureKey := os.Getenv("TF_FILE_HMAC_SECRET_KEY")
+	if secureKey == "" {
+		// the hmac_secret_key argument has a default value, so it can't be null
+		secureKey = hmacSecretKey
+	}
 	file, err := os.Open(filePath)
 	if err != nil {
 		return "", fmt.Errorf("failed to open file for generating hmac: %w", err)
 	}
 	defer file.Close()
-	hasher := hmac.New(sha256.New, key)
-	// copy the file contents to the hasher without reading them into memory.
+	hasher := hmac.New(sha256.New, []byte(secureKey))
+	// Copy the file contents to the hasher without reading it into memory.
 	if _, err := io.Copy(hasher, file); err != nil {
 		return "", fmt.Errorf("failed to copy file content to hmac hasher: %w", err)
 	}
