@@ -267,12 +267,8 @@ func (r *LocalResource) Delete(ctx context.Context, req resource.DeleteRequest, 
 	directory := state.Directory.ValueString()
 	localFilePath := filepath.Join(directory, name)
 	if err := os.Remove(localFilePath); err != nil {
-		tflog.Error(ctx, fmt.Sprintf("Failed to delete file %s: %v", localFilePath, err))
-		resp.Diagnostics.AddError(
-			"File Deletion Failed",
-			fmt.Sprintf("Failed to delete file %s: %v", localFilePath, err),
-		)
-		return
+		tflog.Error(ctx, "Failed to delete file: "+err.Error())
+    return
 	}
 
 	tflog.Debug(ctx, fmt.Sprintf("Response Object: %v", *resp))
