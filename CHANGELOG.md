@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.0](https://github.com/matttrach/terraform-provider-file/compare/v0.0.10...v0.1.0) (2025-08-02)
+
+
+### Features
+
+* local file resource basic behavior complete ([#30](https://github.com/matttrach/terraform-provider-file/issues/30)) ([5b52afe](https://github.com/matttrach/terraform-provider-file/commit/5b52afe36c803b59b2768498b2c103fbd3acd7bf))
+
 ## [0.0.10](https://github.com/matttrach/terraform-provider-file/compare/v0.0.9...v0.0.10) (2025-07-30)
 
 
