@@ -48,6 +48,28 @@ func TestLocalResourceMetadata(t *testing.T) {
 	})
 }
 
+func TestLocalSchema(t *testing.T) {
+	t.Run("Schema function", func(t *testing.T) {
+		testCases := []struct {
+			name string
+			fit  LocalResource
+			want resource.SchemaResponse
+		}{
+			{"Basic test", LocalResource{}, *getLocalResourceSchema()},
+		}
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				r := resource.SchemaResponse{}
+				tc.fit.Schema(context.Background(), resource.SchemaRequest{}, &r)
+				got := r
+				if diff := cmp.Diff(tc.want, got); diff != "" {
+					t.Errorf("Schema() mismatch (-want +got):\n%s", diff)
+				}
+			})
+		}
+	})
+}
+
 func TestLocalResourceCreate(t *testing.T) {
 	t.Run("Create function", func(t *testing.T) {
 		testCases := []struct {
@@ -364,17 +386,6 @@ func getLocalResourceSchema() *resource.SchemaResponse {
 	testResource.Schema(context.Background(), resource.SchemaRequest{}, r)
 	return r
 }
-
-// func getId(contents string) string {
-//   modeInt, _ := strconv.ParseUint(mode, 8, 32)
-//   _ = os.WriteFile(filepath.Join(directory, name), []byte(contents), os.FileMode(modeInt))
-//   defer os.Remove(filepath.Join(directory, name))
-// 	hasher := hmac.New(sha256.New, []byte(hmac_secret_key))
-//   file, _ := os.Open(filepath.Join(directory, name))
-//   defer file.Close()
-//   _, _ = io.Copy(hasher, file)
-//   return hex.EncodeToString(hasher.Sum(nil))
-// }
 
 func setup() {
 	modeInt, _ := strconv.ParseUint(mode, 8, 32)

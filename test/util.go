@@ -13,6 +13,13 @@ import (
 )
 
 func Setup(t *testing.T, id string, testDirectory string) error {
+	path, err := GetRepoRoot(t)
+	if err != nil {
+		return err
+	}
+	if err = os.Setenv("REPO_ROOT", path); err != nil {
+		return err
+	}
 	return createTestDirectories(t, testDirectory, id)
 }
 
@@ -34,6 +41,8 @@ func TearDown(t *testing.T, testDirectory string, options *terraform.Options) {
 			t.Logf("Failed to delete test data directory: %v", err)
 		}
 	}
+	exampleDir := options.TerraformDir
+	os.Remove(filepath.Join(exampleDir, ".terraform.lock.hcl"))
 }
 
 func GetRetryableTerraformErrors() map[string]string {
@@ -84,4 +93,8 @@ func GetOwner() string {
 		owner = "terraform-ci@suse.com"
 	}
 	return owner
+}
+
+func GetRepoRoot(t *testing.T) (string, error) {
+	return filepath.Abs(git.GetRepoRoot(t))
 }

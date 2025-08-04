@@ -162,7 +162,7 @@ func (r *LocalResource) Read(ctx context.Context, req resource.ReadRequest, resp
 	// 	return
 	// }
 
-	// If Possible, we should avoid reading the file into memory (tell don't ask)
+	// If Possible, we should avoid reading the file into memory
 
 	// // If the contents doesn't match what we have in state, then we need to (re)create
 	// contents, err := os.ReadFile(filepath.Join(directory, name))
