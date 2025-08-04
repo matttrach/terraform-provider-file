@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.1](https://github.com/matttrach/terraform-provider-file/compare/v0.1.0...v0.1.1) (2025-08-04)
+
+
+### Bug Fixes
+
+* add schema test and fix acceptance tests ([#32](https://github.com/matttrach/terraform-provider-file/issues/32)) ([b36eda7](https://github.com/matttrach/terraform-provider-file/commit/b36eda79f03b61954942b4401ca6a4bf67294bb9))
+* add test outcomes to release ([#35](https://github.com/matttrach/terraform-provider-file/issues/35)) ([39140ea](https://github.com/matttrach/terraform-provider-file/commit/39140ea0e32b483622134f858862edc775292965))
+
 ## [0.1.0](https://github.com/matttrach/terraform-provider-file/compare/v0.0.10...v0.1.0) (2025-08-02)
 
 
