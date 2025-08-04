@@ -37,6 +37,7 @@ jobs:
           go-version-file: 'go.mod'
           cache: true
       - name: run-unit-tests
+        id: run-unit-tests
         if: steps.release-please.outputs.pr
         run: make test
       - name: install-nix
@@ -47,9 +48,32 @@ jobs:
           nix --version
           which nix
       - name: run-acc-tests
+        id: run-acc-tests
         if: steps.release-please.outputs.pr
         shell: /home/runner/.nix-profile/bin/nix develop --ignore-environment --extra-experimental-features nix-command --extra-experimental-features flakes --keep HOME --keep NIX_SSL_CERT_FILE --keep NIX_ENV_LOADED --keep TERM --command bash -e {0}
         run: make testacc
+      - uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1 https://github.com/actions/github-script/commits/main
+        if: steps.release-please.outputs.pr && always() && (steps.run-unit-tests.conclusion == 'success') && (steps.run-acc-tests.conclusion == 'success')
+        with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          script: |
+            github.rest.issues.createComment({
+              issue_number: ${{ fromJson(steps.release-please.outputs.pr).number }},
+              owner: "${{ github.repository_owner }}",
+              repo: "${{ github.event.repository.name }}",
+              body: "Tests Passed!"
+            })
+      - uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1 https://github.com/actions/github-script/commits/main
+        if: steps.release-please.outputs.pr && always() && ((steps.run-unit-tests.conclusion == 'failure') || (steps.run-acc-tests.conclusion == 'failure'))
+        with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          script: |
+            github.rest.issues.createComment({
+              issue_number: ${{ fromJson(steps.release-please.outputs.pr).number }},
+              owner: "${{ github.repository_owner }}",
+              repo: "${{ github.event.repository.name }}",
+              body: "Tests Failed!"
+            })
 
       # These run after release-please generates a release, so when the release PR is merged
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -76,10 +100,6 @@ jobs:
           trap cleanup EXIT TERM
 
           # sanitize variables
-          #GPG_PASSPHRASE="$(echo "${GPG_PASSPHRASE}" | xargs)"
-          #GPG_KEY_ID="$(echo "${GPG_KEY_ID}" | xargs)"
-          #GPG_KEY="$(echo -n "${GPG_KEY}" | awk '/-----BEGIN PGP PRIVATE KEY BLOCK-----/,/-----END PGP PRIVATE KEY BLOCK-----/')"
-
           if [ -z "${GPG_PASSPHRASE}" ]; then echo "gpg passphrase empty"; exit 1; fi
           if [ -z "${GPG_KEY_ID}" ]; then echo "key id empty"; exit 1; fi
           if [ -z "${GPG_KEY}" ]; then echo "key contents empty"; exit 1; fi
