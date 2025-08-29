@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.4](https://github.com/rancher/terraform-provider-file/compare/v0.1.3...v0.1.4) (2025-08-29)
+
+
+### Bug Fixes
+
+* add manual backport workflow ([#128](https://github.com/rancher/terraform-provider-file/issues/128)) ([#131](https://github.com/rancher/terraform-provider-file/issues/131)) ([7300e97](https://github.com/rancher/terraform-provider-file/commit/7300e97fd2f0b0153aad619ed29d459030938bb6))
+* bump github.com/ulikunitz/xz from 0.5.10 to 0.5.14 in /test ([#126](https://github.com/rancher/terraform-provider-file/issues/126)) ([#136](https://github.com/rancher/terraform-provider-file/issues/136)) ([a1e577a](https://github.com/rancher/terraform-provider-file/commit/a1e577a99c9c8de7269230491846bd2a1534d4b0))
+* hard code the owner and repo name ([#132](https://github.com/rancher/terraform-provider-file/issues/132)) ([#138](https://github.com/rancher/terraform-provider-file/issues/138)) ([044075c](https://github.com/rancher/terraform-provider-file/commit/044075c7d1c818b8d878e54048bc88958e700e35))
+
 ## [0.1.3](https://github.com/rancher/terraform-provider-file/compare/v0.1.2...v0.1.3) (2025-08-28)
 
 
