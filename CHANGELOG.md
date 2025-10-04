@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.0.3](https://github.com/matttrach/terraform-provider-file/compare/v2.0.2...v2.0.3) (2025-10-04)
+
+
+### Bug Fixes
+
+* fix release and release candidate race ([#221](https://github.com/matttrach/terraform-provider-file/issues/221)) ([#224](https://github.com/matttrach/terraform-provider-file/issues/224)) ([5e03c25](https://github.com/matttrach/terraform-provider-file/commit/5e03c25da8e9e3c20ceb5f678f81bc4a9d97fe65))
+
 ## [2.0.2](https://github.com/rancher/terraform-provider-file/compare/v2.0.1...v2.0.2) (2025-10-03)
 
 
