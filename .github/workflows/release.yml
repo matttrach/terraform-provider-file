@@ -121,7 +121,7 @@ jobs:
           echo "Latest rc num: $LATEST_RC_NUM"
           LATEST_FULL_RELEASE=$(git tag | grep "^${BASE_VERSION}\.${LATEST_MINOR_NUM}\.${LATEST_PATCH_NUM}$")
           echo "Detected a full release for latest rc: $LATEST_FULL_RELEASE"
-          if [ -z "$LATEST_FULL_RELEASE" ]; then
+          if [ -n "$LATEST_FULL_RELEASE" ]; then
             # the last minor has a full release, we need to start the next minor release candidate
             if [ -z "$LATEST_MINOR_NUM" ]; then
               # this is a new minor branch
