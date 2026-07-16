@@ -81,21 +81,33 @@
               chmod +x $out/bin/terraform
             '';
           };
-          aspellWithDicts = pkgs.aspellWithDicts (d: [d.en d.en-computers]);
+
+          macVscode = pkgs.writeShellScriptBin "code" ''
+            exec /usr/local/bin/code "$@"
+          '';
+
+          swVers = pkgs.writeShellScriptBin "sw_vers" ''
+            exec /usr/bin/sw_vers "$@"
+          '';
 
         devPackages = [
           # place our downloaded packages here
-          aspellWithDicts
           leftovers
           terraform
+          macVscode
+          swVers
         ] ++ (with pkgs; [
           # here are the packages from the nix repository
           actionlint
           age
           awscli2
           bashInteractive
+          colima
+          cspell
           curl
           dig
+          docker-client
+          docker-compose
           eslint
           gh
           git
@@ -103,20 +115,27 @@
           gnupg
           go
           golangci-lint
+          google-cloud-sdk
           goreleaser
           gotestfmt
           gotestsum
           jq
+          kubectl
+          kubernetes-helm
           less
+          nodejs_26
           openssh
           openssl
           shellcheck
           tflint
           tfsec
+          time
+          tree
           trivy
           updatecli
           vim
           which
+          xz
           yq-go
         ]);
 
@@ -138,8 +157,9 @@
           devShells.default = pkgs.mkShell {
             buildInputs = [ devShellPackage ];
             shellHook = ''
-              while read word; do echo -e "*$word\n#" | aspell -a --dont-validate-words 2&>/dev/null; done < aspell_custom.txt
               export PS1="nix:# ";
+              install -d ~/.docker/cli-plugins/ || true;
+              ln -sfn $(which docker-compose) ~/.docker/cli-plugins/docker-compose || true;
             '';
           };
         }
