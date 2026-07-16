@@ -12,15 +12,15 @@ on:
         description: 'The rc tag to create, e.g. v1.2.3-rc.1'
         required: true
 
-env:
-  NIX_INSTALL_SHA: e9d447ce3d2ff62d7ff9cb6ef401de6fa8acb148839dd00f7271945d7b638b14
-  NIX_INSTALL_VERSION: 2.34.7
-
 permissions: {}
 
 jobs:
   rc-release:
+    name: 'RC Release'
     runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/rancher/ci-image/nix:20260603-18
+    timeout-minutes: 30
     permissions:
       contents: write
       id-token: write
@@ -28,26 +28,28 @@ jobs:
       pull-requests: write
       actions: read
     steps:
-      # https://github.com/actions/github-script/commits/main
-      - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+      - name: 'Check User In Maintainers'
         id: check-user-in-maintainers
+        # https://github.com/actions/github-script/releases
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TERRAFORM_MAINTAINERS: '["matttrach"]'
         with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const isMaintainer = ${{ env.TERRAFORM_MAINTAINERS }}.includes(context.actor);
-            return isMaintainer;
-      - run: |
-          # if the tag doesn't contain "rc" we should not be in this workflow
-          if grep -q "rc" <<< "${{ inputs.tag }}"; then
-            echo "Tag contains 'rc', continuing with RC release"
-          else
-            echo "Tag doesn't contain 'rc', please use the manual-release workflow"
-            exit 1
-          fi
-      # https://github.com/actions/checkout
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+            const scriptPath = `.github/workflows/scripts/check-maintainer.js`;
+            const { default: script } = await import(scriptPath);
+            return await script({github, context, core, process});
+      - name: 'Validate RC Tag'
+        id: validate-rc-tag
+        env:
+          TAG: ${{ inputs.tag }}
+          EXPECTED_TYPE: rc
+        run: .github/workflows/scripts/nix-run.sh bash .github/workflows/scripts/validate-tag.sh
+      - name: 'Checkout Repository'
+        id: checkout
+        # https://github.com/actions/checkout/releases
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
       - name: Create and Push RC Tag with Git
@@ -55,93 +57,58 @@ jobs:
         env:
           TAG: ${{ inputs.tag }}
           SHA: ${{ inputs.sha }}
-        run: |
-          git config user.name "${{ github.actor }}"
-          git config user.email "${{ github.actor }}@users.noreply.github.com"
-          if [ -n "$SHA" ]; then
-            git tag "$TAG" -m "Release Candidate $TAG" "$SHA"
-          else
-            git tag "$TAG" -m "Release Candidate $TAG"
-          fi
-          git push origin "$TAG"
-      - name: Check out new tag into a new directory
-        # https://github.com/actions/checkout
+          GITHUB_ACTOR: ${{ github.actor }}
+        run: .github/workflows/scripts/nix-run.sh bash .github/workflows/scripts/manual-create-push-tag.sh
+      - name: 'Checkout New Tag'
+        id: checkout-new-tag
+        # https://github.com/actions/checkout/releases
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           ref: ${{ inputs.tag }}
-          path: ${{ github.workspace }}/tags/${{ inputs.tag }}
-      - run: |
-          # remove any tags that are not the one specified (to avoid goreleaser confusion)
-          DIR="$(pwd)"
-          cd "${{ github.workspace }}/tags/${{ inputs.tag }}"
-          git tag | grep -v -e "^${{ inputs.tag }}$" | xargs git tag -d
-          # check for terraform-registry-manifest.json presence and create if missing
-          if [ ! -f "terraform-registry-manifest.json" ]; then
-            echo "terraform-registry-manifest.json not found, creating a default one."
-            cat <<EOF > terraform-registry-manifest.json
-          {
-              "version": 1,
-              "metadata": {
-                  "protocol_versions": ["4.0", "5.0", "6.0"]
-              }
-          }
-          EOF
-          fi
-          cd "$DIR"
-      - name: retrieve GPG Credentials
+          path: tags/${{ inputs.tag }}
+      - name: 'Prepare Release Directory'
+        id: prepare-release-dir
+        env:
+          WORKSPACE: ${{ github.workspace }}
+          TAG: ${{ inputs.tag }}
+        run: .github/workflows/scripts/nix-run.sh bash .github/workflows/scripts/prepare-release-dir.sh
+      - name: 'Retrieve GPG Credentials'
         id: retrieve-gpg-credentials
-        uses: rancher-eio/read-vault-secrets@main
+        # https://github.com/rancher-eio/read-vault-secrets/commits
+        uses: rancher-eio/read-vault-secrets@7282bf97898cd1c16c89f837e0bb442e6d384c89 # @main
         with:
           secrets: |
             secret/data/github/repo/${{ github.repository }}/signing/gpg passphrase | GPG_PASSPHRASE ;
             secret/data/github/repo/${{ github.repository }}/signing/gpg privateKeyId | GPG_KEY_ID ;
             secret/data/github/repo/${{ github.repository }}/signing/gpg privateKey | GPG_KEY
-      - name: import_gpg_key
+      - name: 'Import GPG Key'
         id: import-gpg-key
         env:
           GPG_PASSPHRASE: ${{ env.GPG_PASSPHRASE }}
           GPG_KEY_ID: ${{ env.GPG_KEY_ID }}
           GPG_KEY: ${{ env.GPG_KEY }}
-        run: |
-          cleanup() {
-            # clear history just in case
-            history -c
-          }
-          trap cleanup EXIT TERM
-
-          # sanitize variables
-          if [ -z "${GPG_PASSPHRASE}" ]; then echo "gpg passphrase empty"; exit 1; fi
-          if [ -z "${GPG_KEY_ID}" ]; then echo "key id empty"; exit 1; fi
-          if [ -z "${GPG_KEY}" ]; then echo "key contents empty"; exit 1; fi
-
-          echo "Importing gpg key"
-          echo "${GPG_KEY}" | gpg --import --batch > /dev/null || { echo "Failed to import GPG key"; exit 1; }
-        # https://github.com/actions/setup-go
-      - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        run: .github/workflows/scripts/nix-run.sh bash .github/workflows/scripts/import-gpg-key.sh
+      - name: 'Setup Go'
+        id: setup-go
+        # https://github.com/actions/setup-go/releases
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
-          go-version-file: ${{ github.workspace }}/tags/${{ inputs.tag }}/go.mod
-          cache-dependency-path: ${{ github.workspace }}/tags/${{ inputs.tag }}/go.sum
+          go-version-file: ./tags/${{ inputs.tag }}/go.mod
+          cache-dependency-path: ./tags/${{ inputs.tag }}/go.sum
           cache: true
-      - name: install-nix
-        run: |
-          curl -L -o nix_install.sh "https://releases.nixos.org/nix/nix-${NIX_INSTALL_VERSION}/install"
-          echo "${NIX_INSTALL_SHA} nix_install.sh" | sha256sum -c -
-          chmod +x nix_install.sh
-          ./nix_install.sh
-          source /home/runner/.nix-profile/etc/profile.d/nix.sh
-          nix --version
-          rm -f ./nix_install.sh
-      - name: Run GoReleaser
-        shell: /home/runner/.nix-profile/bin/nix develop --ignore-environment --extra-experimental-features nix-command --extra-experimental-features flakes --keep TAG --keep GPG_KEY_ID --keep GPG_PASSPHRASE --keep HOME --keep SSH_AUTH_SOCK --keep GITHUB_TOKEN --keep NIX_SSL_CERT_FILE --keep NIX_ENV_LOADED --keep TERM --command bash -e {0}
+      - name: 'Run GoReleaser'
+        id: run-goreleaser
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GPG_KEY_ID: ${{ env.GPG_KEY_ID }}
           GPG_PASSPHRASE: ${{ env.GPG_PASSPHRASE }}
           TAG: ${{ inputs.tag }}
-        run: |-
-          cd ${{ github.workspace }}/tags/$TAG
-          goreleaser release --clean --skip=validate --config ../../.goreleaser_rc.yml
-      - name: Publish RC
+          WORKING_DIR: ${{ github.workspace }}/tags/${{ inputs.tag }}
+          SKIP_VALIDATE: true
+          GORELEASER_CONFIG: ../../.goreleaser_rc.yml
+        run: .github/workflows/scripts/nix-run.sh bash .github/workflows/scripts/run-goreleaser.sh
+      - name: 'Publish RC'
+        id: publish-rc
         # https://github.com/actions/github-script/releases
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
@@ -149,39 +116,18 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const version = process.env.VERSION;
-            const tag = version.startsWith('v') ? version : `v${version}`;
-
-            const { data: releases } = await github.rest.repos.listReleases({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-            });
-
-            const release = releases.find(r => r.tag_name === tag);
-            if (!release) {
-              core.setFailed(`Could not find release for tag ${tag}`);
-              return;
-            }
-
-            if (release.draft) {
-              core.info(`Publishing release ID ${release.id} for tag ${tag}`);
-              await github.rest.repos.updateRelease({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                release_id: release.id,
-                draft: false
-              });
-            } else {
-              core.info(`Release for tag ${tag} is already published.`);
-            }
+            const scriptPath = `.github/workflows/scripts/publish-release.js`;
+            const { default: script } = await import(scriptPath);
+            await script({github, context, core, process});
       - name: 'Find Issues and Create Comments'
-        # https://github.com/actions/github-script
+        id: find-issues
+        # https://github.com/actions/github-script/releases
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           TAG: ${{ inputs.tag }}
           BRANCH: ${{ inputs.branch }}
         with:
           script: |
-            const scriptPath = `${{ github.workspace }}/.github/workflows/scripts/rc-notify.js`;
+            const scriptPath = `.github/workflows/scripts/rc-notify.js`;
             const { default: script } = await import(scriptPath);
             await script({github, context, core, process});

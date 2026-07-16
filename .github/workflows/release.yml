@@ -1,17 +1,20 @@
-name: release
+name: Release
 
 on:
   push:
     branches:
     - release/v*
+  workflow_dispatch:
 
-env:
-  NIX_INSTALL_SHA: e9d447ce3d2ff62d7ff9cb6ef401de6fa8acb148839dd00f7271945d7b638b14
-  NIX_INSTALL_VERSION: 2.34.7
+permissions: {}
 
 jobs:
   release-please-release:
+    name: 'Release Please (Release Only)'
     runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/rancher/ci-image/nix:20260603-18
+    timeout-minutes: 30
     permissions:
       contents: write
       pull-requests: write
@@ -20,9 +23,9 @@ jobs:
       release_created: ${{ steps.release-please-release.outputs.release_created }}
     steps:
       - name: Release Please (Release Only)
+        id: release-please-release
         # https://github.com/googleapis/release-please-action/releases
         uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
-        id: release-please-release
         with:
           target-branch: ${{ github.ref_name }}
           config-file: release-please-config.json
@@ -37,7 +40,11 @@ jobs:
       !cancelled() &&
       needs.release-please-release.result == 'success' &&
       (needs.release.result == 'success' || needs.release.result == 'skipped')
+    name: 'Release Please (PR Only)'
     runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/rancher/ci-image/nix:20260603-18
+    timeout-minutes: 30
     permissions:
       contents: write
       pull-requests: write
@@ -46,9 +53,9 @@ jobs:
       pr: ${{ steps.release-please-pr.outputs.pr }}
     steps:
       - name: Release Please (PR Only)
+        id: release-please-pr
         # https://github.com/googleapis/release-please-action/releases
         uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
-        id: release-please-pr
         with:
           target-branch: ${{ github.ref_name }}
           config-file: release-please-config.json
@@ -59,82 +66,89 @@ jobs:
   release-test:
     needs: release-please-pr
     if: needs.release-please-pr.outputs.prs_created == 'true'
+    name: 'Release Tests'
     runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/rancher/ci-image/nix:20260603-18
+    timeout-minutes: 30
     permissions:
       contents: read
       pull-requests: write
     outputs:
       outcome: ${{ steps.run-unit-tests.conclusion == 'success' && steps.run-acc-tests.conclusion == 'success' }}
     steps:
-      - name: install-nix
-        run: |
-          curl -L -o install-nix.sh "https://releases.nixos.org/nix/nix-${NIX_INSTALL_VERSION}/install"
-          echo "${NIX_INSTALL_SHA} install-nix.sh" | sha256sum -c -
-          chmod +x install-nix.sh
-          ./install-nix.sh
-          source /home/runner/.nix-profile/etc/profile.d/nix.sh
-          nix --version
-          which nix
-          rm -f ./install-nix.sh
-      # https://github.com/actions/checkout/releases
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Checkout Repository
+        id: checkout-repository
+        # https://github.com/actions/checkout/releases
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
-      # https://github.com/actions/github-script/releases
-      - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
-        name: wait-for-e2e
+      - name: Wait for E2E
+        id: wait-for-e2e
+        # https://github.com/actions/github-script/releases
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          PR_NUMBER: ${{ fromJson(needs.release-please-pr.outputs.pr).number }}
+          GITHUB_OWNER: ${{ github.repository_owner }}
+          REPO_NAME: ${{ github.event.repository.name }}
+          SERVER_URL: ${{ github.server_url }}
+          REPOSITORY: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           script: |
-            github.rest.issues.createComment({
-              issue_number: ${{ fromJson(needs.release-please-pr.outputs.pr).number }},
-              owner: "${{ github.repository_owner }}",
-              repo: "${{ github.event.repository.name }}",
-              body: "Please make sure e2e tests pass before merging this PR! \n ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-            })
-      # https://github.com/actions/checkout/releases
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      # https://github.com/actions/setup-go/releases
-      - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+            const scriptPath = `.github/workflows/scripts/wait-for-e2e.js`;
+            const { default: script } = await import(scriptPath);
+            await script({github, context, core, process});
+      - name: Checkout Repository Again
+        id: checkout-repository-again
+        # https://github.com/actions/checkout/releases
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - name: Setup Go
+        id: setup-go
+        # https://github.com/actions/setup-go/releases
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:
           go-version-file: 'go.mod'
           cache: true
-      - name: run-unit-tests
+      - name: Run Unit Tests
         id: run-unit-tests
-        run: |
-          # https://github.com/gotestyourself/gotestsum/releases
-          go install gotest.tools/gotestsum@c4a0df2e75a225d979a444342dd3db752b53619f # v1.13.0
-          make test
-      - name: run-acc-tests
+        run: .github/workflows/scripts/nix-run.sh bash .github/workflows/scripts/run-unit-tests.sh
+      - name: Run Acceptance Tests
         id: run-acc-tests
-        shell: /home/runner/.nix-profile/bin/nix develop --ignore-environment --extra-experimental-features nix-command --extra-experimental-features flakes --keep HOME --keep NIX_SSL_CERT_FILE --keep NIX_ENV_LOADED --keep TERM --command bash -e {0}
-        run: make testacc
-      - name: report-tests-passed
+        run: .github/workflows/scripts/nix-run.sh bash .github/workflows/scripts/run-acc-tests.sh
+      - name: Report Tests Passed
+        id: report-tests-passed
         # https://github.com/actions/github-script/releases
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         if: always() && (steps.run-unit-tests.conclusion == 'success') && (steps.run-acc-tests.conclusion == 'success')
+        env:
+          PR_NUMBER: ${{ fromJson(needs.release-please-pr.outputs.pr).number }}
+          GITHUB_OWNER: ${{ github.repository_owner }}
+          REPO_NAME: ${{ github.event.repository.name }}
+          TEST_STATUS: passed
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           script: |
-            github.rest.issues.createComment({
-              issue_number: ${{ fromJson(needs.release-please-pr.outputs.pr).number }},
-              owner: "${{ github.repository_owner }}",
-              repo: "${{ github.event.repository.name }}",
-              body: "Tests Passed!"
-            })
-      # https://github.com/actions/github-script/releases
-      - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
-        name: report-tests-failed
+            const scriptPath = `.github/workflows/scripts/report-tests.js`;
+            const { default: script } = await import(scriptPath);
+            await script({github, context, core, process});
+      - name: Report Tests Failed
+        id: report-tests-failed
+        # https://github.com/actions/github-script/releases
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         if: always() && ((steps.run-unit-tests.conclusion == 'failure') || (steps.run-acc-tests.conclusion == 'failure'))
+        env:
+          PR_NUMBER: ${{ fromJson(needs.release-please-pr.outputs.pr).number }}
+          GITHUB_OWNER: ${{ github.repository_owner }}
+          REPO_NAME: ${{ github.event.repository.name }}
+          TEST_STATUS: failed
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           script: |
-            github.rest.issues.createComment({
-              issue_number: ${{ fromJson(needs.release-please-pr.outputs.pr).number }},
-              owner: "${{ github.repository_owner }}",
-              repo: "${{ github.event.repository.name }}",
-              body: "Tests Failed!"
-            })
+            const scriptPath = `.github/workflows/scripts/report-tests.js`;
+            const { default: script } = await import(scriptPath);
+            await script({github, context, core, process});
 
   # This runs if release-please created or updated a PR, tests run and pass
   rc-release:
@@ -142,182 +156,111 @@ jobs:
       - release-please-pr
       - release-test
     if: needs.release-please-pr.outputs.prs_created == 'true' && needs.release-test.outputs.outcome == 'true'
+    name: 'RC Release'
     runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/rancher/ci-image/nix:20260603-18
+    timeout-minutes: 30
     permissions:
       contents: write
       id-token: write
     steps:
+      - name: Checkout Repository
+        id: checkout-repository
+        # https://github.com/actions/checkout/releases
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
       # If the e2e tests pass we automatically generate an RC release
       #   this shouldn't happen when the release PR is merged, only when it's opened or updated
       - name: Create and Push RC Tag with Git
         id: create-push-rc-tag
-        run: |
-          BASE_VERSION=$(echo "$GITHUB_REF" | sed 's/refs\/heads\/release\///')
-          echo "Base version is: $BASE_VERSION" # gets v0 from release/v0 in branch name
-          git fetch --tags
-          LATEST_MINOR_NUM=$(git tag | grep "^${BASE_VERSION}\." | awk -F. '{print $2}' | sort -n | tail -1)
-          echo "Latest minor num: $LATEST_MINOR_NUM"
-          LATEST_PATCH_NUM=$(git tag | grep "^${BASE_VERSION}\.${LATEST_MINOR_NUM}\." | awk -F- '{print $1}' | awk -F. '{print $3}' | sort -n | tail -1)
-          echo "Latest patch num: $LATEST_PATCH_NUM"
-          LATEST_RC_NUM=$(git tag | grep "^${BASE_VERSION}\.${LATEST_MINOR_NUM}\.${LATEST_PATCH_NUM}-rc\." | awk -F. '{print $4}' | grep -v '^$' | sort -n | tail -1)
-          echo "Latest rc num: $LATEST_RC_NUM"
-          LATEST_FULL_RELEASE=$(git tag | grep "^${BASE_VERSION}\.${LATEST_MINOR_NUM}\.${LATEST_PATCH_NUM}$")
-          echo "Detected a full release for latest rc: $LATEST_FULL_RELEASE"
-          if [ -n "$LATEST_FULL_RELEASE" ]; then
-            # the last minor has a full release, we need to start the next minor release candidate
-            if [ -z "$LATEST_MINOR_NUM" ]; then
-              # this is a new minor branch
-              LATEST_MINOR_NUM=0
-            else
-              LATEST_MINOR_NUM=$((LATEST_MINOR_NUM + 1))
-            fi
-            LATEST_PATCH_NUM=0
-            NEXT_RC_NUM=0
-          else
-            NEXT_RC_NUM=$((LATEST_RC_NUM + 1))
-          fi
-          NEXT_RC_TAG="${BASE_VERSION}.${LATEST_MINOR_NUM}.${LATEST_PATCH_NUM}-rc.${NEXT_RC_NUM}"
-          echo "Calculated next RC tag: $NEXT_RC_TAG"
-
-          # Configure git user
-          git config user.name "${{ github.actor }}"
-          git config user.email "${{ github.actor }}@users.noreply.github.com"
-
-          # Create and push the new tag
-          git tag "$NEXT_RC_TAG" -m "Release Candidate $NEXT_RC_TAG"
-          git push origin "$NEXT_RC_TAG"
-          echo "RC_TAG=$NEXT_RC_TAG" >> "$GITHUB_ENV"
-          echo "RC_BRANCH=release/$BASE_VERSION" >> "$GITHUB_ENV"
-      - name: retrieve GPG Credentials
+        env:
+          GITHUB_ACTOR: ${{ github.actor }}
+        run: .github/workflows/scripts/nix-run.sh bash .github/workflows/scripts/create-push-rc-tag.sh
+      - name: Retrieve GPG Credentials
         id: retrieve-gpg-credentials
-        uses: rancher-eio/read-vault-secrets@main
-        with:
-          secrets: |
-            secret/data/github/repo/${{ github.repository }}/signing/gpg passphrase | GPG_PASSPHRASE ;
-            secret/data/github/repo/${{ github.repository }}/signing/gpg privateKeyId | GPG_KEY_ID ;
-            secret/data/github/repo/${{ github.repository }}/signing/gpg privateKey | GPG_KEY
-      - name: import_gpg_key
-        id: import-gpg-key
-        env:
-          GPG_PASSPHRASE: ${{ env.GPG_PASSPHRASE }}
-          GPG_KEY_ID: ${{ env.GPG_KEY_ID }}
-          GPG_KEY: ${{ env.GPG_KEY }}
-        run: |
-          cleanup() {
-            # clear history just in case
-            history -c
-          }
-          trap cleanup EXIT TERM
-
-          # sanitize variables
-          if [ -z "${GPG_PASSPHRASE}" ]; then echo "gpg passphrase empty"; exit 1; fi
-          if [ -z "${GPG_KEY_ID}" ]; then echo "key id empty"; exit 1; fi
-          if [ -z "${GPG_KEY}" ]; then echo "key contents empty"; exit 1; fi
-
-          echo "Importing gpg key"
-          echo "${GPG_KEY}" | gpg --import --batch > /dev/null || { echo "Failed to import GPG key"; exit 1; }
-      - name: install-nix
-        run: |
-          curl -L -o install-nix.sh "https://releases.nixos.org/nix/nix-${NIX_INSTALL_VERSION}/install"
-          echo "${NIX_INSTALL_SHA} install-nix.sh" | sha256sum -c -
-          chmod +x install-nix.sh
-          ./install-nix.sh
-          source /home/runner/.nix-profile/etc/profile.d/nix.sh
-          nix --version
-          which nix
-          rm -f ./install-nix.sh
-      - name: Run GoReleaser
-        shell: /home/runner/.nix-profile/bin/nix develop --ignore-environment --extra-experimental-features nix-command --extra-experimental-features flakes --keep HOME --keep SSH_AUTH_SOCK --keep GPG_KEY_ID --keep GPG_PASSPHRASE --keep GITHUB_TOKEN --keep NIX_SSL_CERT_FILE --keep NIX_ENV_LOADED --keep TERM --command bash -e {0}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GPG_KEY_ID: ${{ env.GPG_KEY_ID }}
-          GPG_PASSPHRASE: ${{ env.GPG_PASSPHRASE }}
-        run: |-
-          goreleaser release --clean --config .goreleaser_rc.yml
-        # GoReleaser will automatically set RC releases to prerelease instead of draft (no need to publish)
-
-
-  # These run after release-please generates a release
-  release:
-    needs: release-please-release
-    if: needs.release-please-release.outputs.release_created == 'true'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      id-token: write
-    steps:
-        # https://github.com/actions/checkout/releases
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          fetch-depth: 0
-      - name: Create and Push Tag
-        env:
-          VERSION: ${{ needs.release-please-release.outputs.version }}
-        run: |
-          TAG=$VERSION
-          if [[ $TAG != v* ]]; then
-            TAG="v$TAG"
-          fi
-          git config user.name "${{ github.actor }}"
-          git config user.email "${{ github.actor }}@users.noreply.github.com"
-
-          if ! git ls-remote --tags origin | grep -q "refs/tags/$TAG$"; then
-            git tag "$TAG" -m "Release $TAG"
-            git push origin "$TAG"
-          else
-            echo "Tag $TAG already exists."
-          fi
-        # https://github.com/actions/setup-go/releases
-      - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
-        with:
-          go-version-file: 'go.mod'
-          cache: true
-      - name: retrieve GPG Credentials
-          # https://github.com/rancher-eio/read-vault-secrets/commits
+        # https://github.com/rancher-eio/read-vault-secrets/commits
         uses: rancher-eio/read-vault-secrets@7282bf97898cd1c16c89f837e0bb442e6d384c89 # main
         with:
           secrets: |
             secret/data/github/repo/${{ github.repository }}/signing/gpg passphrase | GPG_PASSPHRASE ;
             secret/data/github/repo/${{ github.repository }}/signing/gpg privateKeyId | GPG_KEY_ID ;
             secret/data/github/repo/${{ github.repository }}/signing/gpg privateKey | GPG_KEY
-      - name: import_gpg_key
+      - name: Import GPG Key
+        id: import-gpg-key
         env:
           GPG_PASSPHRASE: ${{ env.GPG_PASSPHRASE }}
           GPG_KEY_ID: ${{ env.GPG_KEY_ID }}
           GPG_KEY: ${{ env.GPG_KEY }}
-        run: |
-          cleanup() {
-            # clear history just in case
-            history -c
-          }
-          trap cleanup EXIT TERM
-
-          # sanitize variables
-          if [ -z "${GPG_PASSPHRASE}" ]; then echo "gpg passphrase empty"; exit 1; fi
-          if [ -z "${GPG_KEY_ID}" ]; then echo "key id empty"; exit 1; fi
-          if [ -z "${GPG_KEY}" ]; then echo "key contents empty"; exit 1; fi
-
-          echo "Importing gpg key"
-          echo "${GPG_KEY}" | gpg --import --batch > /dev/null || { echo "Failed to import GPG key"; exit 1; }
-      - name: install-nix
-        run: |
-          curl -L -o install-nix.sh "https://releases.nixos.org/nix/nix-${NIX_INSTALL_VERSION}/install"
-          echo "${NIX_INSTALL_SHA} install-nix.sh" | sha256sum -c -
-          chmod +x install-nix.sh
-          ./install-nix.sh
-          source /home/runner/.nix-profile/etc/profile.d/nix.sh
-          nix --version
-          which nix
-          rm -f ./install-nix.sh
+        run: .github/workflows/scripts/nix-run.sh bash .github/workflows/scripts/import-gpg-key.sh
       - name: Run GoReleaser
-        shell: /home/runner/.nix-profile/bin/nix develop --ignore-environment --extra-experimental-features nix-command --extra-experimental-features flakes --keep HOME --keep SSH_AUTH_SOCK --keep GPG_KEY_ID --keep GPG_PASSPHRASE --keep GITHUB_TOKEN --keep NIX_SSL_CERT_FILE --keep NIX_ENV_LOADED --keep TERM --command bash -e {0}
+        id: run-goreleaser
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GPG_KEY_ID: ${{ env.GPG_KEY_ID }}
           GPG_PASSPHRASE: ${{ env.GPG_PASSPHRASE }}
-        run: |-
-          goreleaser release --clean --config .goreleaser.yml
+          GORELEASER_CONFIG: .goreleaser_rc.yml
+        run: .github/workflows/scripts/nix-run.sh bash .github/workflows/scripts/run-goreleaser.sh
+        # GoReleaser will automatically set RC releases to prerelease instead of draft (no need to publish)
+
+  # These run after release-please generates a release
+  release:
+    needs: release-please-release
+    if: needs.release-please-release.outputs.release_created == 'true'
+    name: 'Full Release'
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/rancher/ci-image/nix:20260603-18
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - name: Checkout Repository
+        id: checkout-repository
+        # https://github.com/actions/checkout/releases
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+      - name: Create and Push Tag
+        id: create-push-tag
+        env:
+          VERSION: ${{ needs.release-please-release.outputs.version }}
+          GITHUB_ACTOR: ${{ github.actor }}
+        run: .github/workflows/scripts/nix-run.sh bash .github/workflows/scripts/create-push-tag.sh
+      - name: Setup Go
+        id: setup-go
+        # https://github.com/actions/setup-go/releases
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: 'go.mod'
+          cache: true
+      - name: Retrieve GPG Credentials
+        id: retrieve-gpg-credentials
+        # https://github.com/rancher-eio/read-vault-secrets/commits
+        uses: rancher-eio/read-vault-secrets@7282bf97898cd1c16c89f837e0bb442e6d384c89 # @main
+        with:
+          secrets: |
+            secret/data/github/repo/${{ github.repository }}/signing/gpg passphrase | GPG_PASSPHRASE ;
+            secret/data/github/repo/${{ github.repository }}/signing/gpg privateKeyId | GPG_KEY_ID ;
+            secret/data/github/repo/${{ github.repository }}/signing/gpg privateKey | GPG_KEY
+      - name: Import GPG Key
+        id: import-gpg-key
+        env:
+          GPG_PASSPHRASE: ${{ env.GPG_PASSPHRASE }}
+          GPG_KEY_ID: ${{ env.GPG_KEY_ID }}
+          GPG_KEY: ${{ env.GPG_KEY }}
+        run: .github/workflows/scripts/nix-run.sh bash .github/workflows/scripts/import-gpg-key.sh
+      - name: Run GoReleaser
+        id: run-goreleaser
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GPG_KEY_ID: ${{ env.GPG_KEY_ID }}
+          GPG_PASSPHRASE: ${{ env.GPG_PASSPHRASE }}
+        run: .github/workflows/scripts/nix-run.sh bash .github/workflows/scripts/run-goreleaser.sh
       - name: Publish Release
+        id: publish-release
         # https://github.com/actions/github-script/releases
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
@@ -325,28 +268,6 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const version = process.env.VERSION;
-            const tag = version.startsWith('v') ? version : `v${version}`;
-
-            const { data: releases } = await github.rest.repos.listReleases({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-            });
-
-            const release = releases.find(r => r.tag_name === tag);
-            if (!release) {
-              core.setFailed(`Could not find release for tag ${tag}`);
-              return;
-            }
-
-            if (release.draft) {
-              core.info(`Publishing release ID ${release.id} for tag ${tag}`);
-              await github.rest.repos.updateRelease({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                release_id: release.id,
-                draft: false
-              });
-            } else {
-              core.info(`Release for tag ${tag} is already published.`);
-            }
+            const scriptPath = `.github/workflows/scripts/publish-release.js`;
+            const { default: script } = await import(scriptPath);
+            await script({github, context, core, process});

@@ -22,7 +22,7 @@ As a strict DevSecOps CI/CD reviewer, enforce these standards on all workflow ch
 * **Orchestrate, Don't Execute:** Workflows should orchestrate, not execute. They may call out to external actions or internal scripts, but must not execute full steps by themselves.
 * **External Scripts:** All `run` or `github-script` scripts should be placed in the `.github/workflows/scripts` directory. Do not use inline JavaScript in `actions/github-script`.
 * **Script Validation:** All scripts should be validated in the `pull_request.yaml` workflow.
-* **Descriptive Names:** All workflows, jobs, and steps need a descriptive `name` and `id`, the `name` field must be the first field in the step definition.
+* **Descriptive Names:** All workflows and jobs need a descriptive `name`. All steps need a descriptive `name` and `id`. The `name` field must be the first field in the step definition.
 * **Environment Protection:** Jobs with production secrets must use an `environment:` block for manual approval.
 * **No Custom Shells:** Don't use the shell attribute when running scripts, instead use the nix-run.sh script.
 
