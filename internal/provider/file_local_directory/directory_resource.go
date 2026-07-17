@@ -141,26 +141,26 @@ func (r *LocalDirectoryResource) Read(ctx context.Context, req resource.ReadRequ
 	}
 	sPath := state.Path.ValueString()
 	sPerm := state.Permissions.ValueString()
-  sCreated := state.Created.ValueString()
-  sId := state.Id.ValueString()
+	sCreated := state.Created.ValueString()
+	sId := state.Id.ValueString()
 
-  if (state.Id.IsUnknown() || state.Id.IsNull()) && sId == "" {
-    tflog.Debug(ctx, "Unknown or null state Id.")
-  	hasher := sha256.New()
-  	hasher.Write([]byte(sPath))
-  	id := hex.EncodeToString(hasher.Sum(nil))
-  	state.Id = types.StringValue(id)
-  }
+	if (state.Id.IsUnknown() || state.Id.IsNull()) && sId == "" {
+		tflog.Debug(ctx, "Unknown or null state Id.")
+		hasher := sha256.New()
+		hasher.Write([]byte(sPath))
+		id := hex.EncodeToString(hasher.Sum(nil))
+		state.Id = types.StringValue(id)
+	}
 
-  if (state.Created.IsUnknown() || state.Created.IsNull()) && sCreated == "" {
-    resp.Diagnostics.AddError("Bad State", "Unknown or null state for Created attribute.")
-    return
-  }
+	if (state.Created.IsUnknown() || state.Created.IsNull()) && sCreated == "" {
+		resp.Diagnostics.AddError("Bad State", "Unknown or null state for Created attribute.")
+		return
+	}
 
 	perm, data, err := r.client.Read(sPath)
 	if err != nil && os.IsNotExist(err) {
 		// force recreate if directory not found
-    tflog.Debug(ctx, fmt.Sprintf("Directory not found: %#v", err))
+		tflog.Debug(ctx, fmt.Sprintf("Directory not found: %#v", err))
 		resp.State.RemoveResource(ctx)
 		return
 	}

@@ -47,3 +47,13 @@ Consult and adhere to these rule files when generating, editing, or reviewing co
 * **GitHub Actions (`.github/workflows/**/*.{yml,yaml}`)** -> `.agent/rules/workflows.instructions.md`
 * **GitHub Scripts (`.github/workflows/scripts/**/*.js`)** -> `.agent/rules/github-script.instructions.md`
 * **Shell Scripts (`**/*.{sh,bash}`)** -> `.agent/rules/shell-scripts.instructions.md`
+
+## 6. Tool Use
+
+Tool use MUST prioritize built in tools and skills over shell, shell commands are a last resort.
+* **ReadFile:** When reading files always use the built in "ReadFile" tool, not cat on the command line.
+* **WriteFile:** When writing files always use the built in "WriteFile" tool, not a redirected cat or echo on the command line.
+* **Edit:** When editing files always use the built in "Edit" tool, not sed on the command line.
+* **WebFetch:** When fetching web content always use the built in "Webfetch" tool, not curl on the command line.
+* **Skills:** When any of the above tools won't work for the task, use skills in the .agent/skills directory before crafting your own commands.
+* **Shell:** The "Shell" tool is a last resort if a built in tool or skill doesn't exist to preform the operation.

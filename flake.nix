@@ -126,6 +126,7 @@
           nodejs_26
           openssh
           openssl
+          ripgrep
           shellcheck
           tflint
           tfsec

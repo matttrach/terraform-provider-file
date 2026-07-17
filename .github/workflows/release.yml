@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     branches:
-    - release/v*
+    - main
   workflow_dispatch:
 
 permissions: {}
@@ -29,7 +29,6 @@ jobs:
         with:
           target-branch: ${{ github.ref_name }}
           config-file: release-please-config.json
-          manifest-file: .release-please-manifest.json
           skip-github-pull-request: true
 
   release-please-pr:
@@ -51,6 +50,7 @@ jobs:
     outputs:
       prs_created: ${{ steps.release-please-pr.outputs.prs_created }}
       pr: ${{ steps.release-please-pr.outputs.pr }}
+      version: ${{ steps.release-please-pr.outputs.version || steps.release-please-pr.outputs['.--version'] }}
     steps:
       - name: Release Please (PR Only)
         id: release-please-pr
@@ -173,11 +173,18 @@ jobs:
           fetch-depth: 0
       # If the e2e tests pass we automatically generate an RC release
       #   this shouldn't happen when the release PR is merged, only when it's opened or updated
-      - name: Create and Push RC Tag with Git
+      - name: Create and Push RC Tag via API
         id: create-push-rc-tag
+        # https://github.com/actions/github-script/releases
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
-          GITHUB_ACTOR: ${{ github.actor }}
-        run: .github/workflows/scripts/nix-run.sh bash .github/workflows/scripts/create-push-rc-tag.sh
+          TARGET_VERSION: ${{ needs.release-please-pr.outputs.version }}
+        with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          script: |
+            const scriptPath = `.github/workflows/scripts/create-push-rc-tag.js`;
+            const { default: script } = await import(scriptPath);
+            await script({github, context, core, process});
       - name: Retrieve GPG Credentials
         id: retrieve-gpg-credentials
         # https://github.com/rancher-eio/read-vault-secrets/commits
@@ -206,7 +213,8 @@ jobs:
 
   # These run after release-please generates a release
   release:
-    needs: release-please-release
+    needs:
+      - release-please-release
     if: needs.release-please-release.outputs.release_created == 'true'
     name: 'Full Release'
     runs-on: ubuntu-latest

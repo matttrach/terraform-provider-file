@@ -27,7 +27,7 @@ func (c *OsDirectoryClient) Read(path string) (string, map[string]map[string]str
 	if err != nil {
 		if os.IsNotExist(err) {
 			return "", nil, err
-    }
+		}
 		return "", nil, err
 	}
 	mode := fmt.Sprintf("%#o", info.Mode().Perm())

@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'The tag to create, make sure to select the correct branch.'
+        description: 'The tag to create, make sure to select the main branch.'
         required: true
       sha:
         description: 'The commit SHA to create the tag from, defaults to HEAD of the selected branch.'

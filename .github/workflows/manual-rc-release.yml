@@ -5,6 +5,7 @@ on:
       branch:
         description: 'The branch where the sha exists.'
         required: true
+        default: 'main'
       sha:
         description: 'The commit SHA to create the tag from, defaults to HEAD of the selected branch.'
         required: false
@@ -117,17 +118,5 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const scriptPath = `.github/workflows/scripts/publish-release.js`;
-            const { default: script } = await import(scriptPath);
-            await script({github, context, core, process});
-      - name: 'Find Issues and Create Comments'
-        id: find-issues
-        # https://github.com/actions/github-script/releases
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
-        env:
-          TAG: ${{ inputs.tag }}
-          BRANCH: ${{ inputs.branch }}
-        with:
-          script: |
-            const scriptPath = `.github/workflows/scripts/rc-notify.js`;
             const { default: script } = await import(scriptPath);
             await script({github, context, core, process});
