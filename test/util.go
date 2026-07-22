@@ -51,7 +51,10 @@ func GetRetryableTerraformErrors() map[string]string {
 }
 
 func createTestDirectories(t *testing.T, testDirectory string, id string) error {
-	gwd := git.GetRepoRoot(t)
+	gwd, err := GetRepoRoot(t)
+	if err != nil {
+		return err
+	}
 	fwd, err := filepath.Abs(gwd)
 	if err != nil {
 		return err
@@ -87,6 +90,9 @@ func GetOwner() string {
 }
 
 func GetRepoRoot(t *testing.T) (string, error) {
+	if root := os.Getenv("REPO_ROOT"); root != "" {
+		return filepath.Abs(root)
+	}
 	return filepath.Abs(git.GetRepoRoot(t))
 }
 

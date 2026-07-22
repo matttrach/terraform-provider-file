@@ -11,6 +11,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/boolvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -193,6 +194,9 @@ func (r *LocalResource) Create(ctx context.Context, req resource.CreateRequest, 
 	}
 
 	tflog.Debug(ctx, fmt.Sprintf("Client: #%v", r.client))
+	// Introduce a larger delay to simulate slow operations and force a massive
+	// concurrent scheduling stampede in Yamux/gRPC multiplexing under heavy parallel load.
+	time.Sleep(2000 * time.Millisecond)
 	if err = r.client.Create(directory, name, contents, permString); err != nil {
 		resp.Diagnostics.AddError("Error creating file: ", err.Error())
 		return

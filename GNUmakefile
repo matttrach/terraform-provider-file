@@ -1,3 +1,5 @@
+SHELL := /bin/bash
+
 default: fmt lint build install generate test testacc
 
 fmt:

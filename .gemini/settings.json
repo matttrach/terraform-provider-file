@@ -1,10 +1,30 @@
 {
-  "hooks": [
-    {
-      "events": ["BeforeTool", "BeforeToolSelection"],
-      "command": "bash",
-      "args": [".agent/hooks/check-context.sh"],
-      "description": "Enforces maximum context token limit to prevent execution failures"
-    }
-  ]
+  "hooks": {
+    "BeforeTool": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "name": "check-context",
+            "type": "command",
+            "command": "bash $GEMINI_PROJECT_DIR/.agent/hooks/check-context.sh",
+            "description": "Enforces maximum context token limit to prevent execution failures"
+          }
+        ]
+      }
+    ],
+    "BeforeToolSelection": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "name": "check-context",
+            "type": "command",
+            "command": "bash $GEMINI_PROJECT_DIR/.agent/hooks/check-context.sh",
+            "description": "Enforces maximum context token limit to prevent execution failures"
+          }
+        ]
+      }
+    ]
+  }
 }
