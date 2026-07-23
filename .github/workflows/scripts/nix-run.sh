@@ -57,4 +57,8 @@ sudo -E -u suse /home/suse/.nix-profile/bin/nix develop \
   --keep ZONE \
   --keep ACME_SERVER_URL \
   --keep PR_NUMBER \
+  --keep GPG_PASSPHRASE \
+  --keep GPG_KEY_ID \
+  --keep GPG_KEY \
   --command bash -e .nix-script.sh
+  
