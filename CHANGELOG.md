@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.4.3](https://github.com/rancher/terraform-provider-file/compare/v2.4.2...v2.4.3) (2026-07-23)
+
+
+### Bug Fixes
+
+* remote workflow script pathing ([#334](https://github.com/rancher/terraform-provider-file/issues/334)) ([054d1a8](https://github.com/rancher/terraform-provider-file/commit/054d1a80bfde0257b214704fcd9517932f97600c))
+
 ## [2.4.2](https://github.com/rancher/terraform-provider-file/compare/v1.1.0-rc.0...v2.4.2) (2026-07-23)
 
 
