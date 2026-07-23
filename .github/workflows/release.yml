@@ -29,6 +29,7 @@ jobs:
         with:
           target-branch: ${{ github.ref_name }}
           config-file: release-please-config.json
+          release-type: go
           skip-github-pull-request: true
 
   release-please-pr:
@@ -59,7 +60,7 @@ jobs:
         with:
           target-branch: ${{ github.ref_name }}
           config-file: release-please-config.json
-          manifest-file: .release-please-manifest.json
+          release-type: go
           skip-github-release: true
 
   # Release tests only run if release-please created or updated a PR
