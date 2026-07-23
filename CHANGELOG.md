@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.4.4](https://github.com/rancher/terraform-provider-file/compare/v2.4.3...v2.4.4) (2026-07-23)
+
+
+### Bug Fixes
+
+* add gpg environment variables to nix ([#336](https://github.com/rancher/terraform-provider-file/issues/336)) ([3e4eb27](https://github.com/rancher/terraform-provider-file/commit/3e4eb2726aa438218877da5f529547774cfad45d))
+
 ## [2.4.3](https://github.com/rancher/terraform-provider-file/compare/v2.4.2...v2.4.3) (2026-07-23)
 
 
