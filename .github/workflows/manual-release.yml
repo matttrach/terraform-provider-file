@@ -32,7 +32,7 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const scriptPath = `.github/workflows/scripts/check-maintainer.js`;
+            const scriptPath = `${process.env.GITHUB_WORKSPACE}/.github/workflows/scripts/check-maintainer.js`;
             const { default: script } = await import(scriptPath);
             return await script({github, context, core, process});
       - name: 'Validate Release Tag'
@@ -57,7 +57,7 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const scriptPath = `.github/workflows/scripts/create-push-tag.js`;
+            const scriptPath = `${process.env.GITHUB_WORKSPACE}/.github/workflows/scripts/create-push-tag.js`;
             const { default: script } = await import(scriptPath);
             await script({github, context, core, process});
       - name: 'Checkout New Tag'
@@ -117,6 +117,6 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const scriptPath = `.github/workflows/scripts/publish-release.js`;
+            const scriptPath = `${process.env.GITHUB_WORKSPACE}/.github/workflows/scripts/publish-release.js`;
             const { default: script } = await import(scriptPath);
             await script({github, context, core, process});

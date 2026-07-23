@@ -96,7 +96,7 @@ jobs:
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           script: |
-            const scriptPath = `.github/workflows/scripts/post-pr-comment.js`;
+            const scriptPath = `${process.env.GITHUB_WORKSPACE}/.github/workflows/scripts/post-pr-comment.js`;
             const { default: script } = await import(scriptPath);
             await script({github, context, core, process});
       - name: Checkout Repository Again
@@ -129,7 +129,7 @@ jobs:
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           script: |
-            const scriptPath = `.github/workflows/scripts/post-pr-comment.js`;
+            const scriptPath = `${process.env.GITHUB_WORKSPACE}/.github/workflows/scripts/post-pr-comment.js`;
             const { default: script } = await import(scriptPath);
             await script({github, context, core, process});
       - name: Report Tests Failed
@@ -145,7 +145,7 @@ jobs:
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           script: |
-            const scriptPath = `.github/workflows/scripts/post-pr-comment.js`;
+            const scriptPath = `${process.env.GITHUB_WORKSPACE}/.github/workflows/scripts/post-pr-comment.js`;
             const { default: script } = await import(scriptPath);
             await script({github, context, core, process});
 
@@ -182,7 +182,7 @@ jobs:
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           script: |
-            const scriptPath = `.github/workflows/scripts/create-push-tag.js`;
+            const scriptPath = `${process.env.GITHUB_WORKSPACE}/.github/workflows/scripts/create-push-tag.js`;
             const { default: script } = await import(scriptPath);
             await script({github, context, core, process});
       - name: Retrieve GPG Credentials
@@ -240,7 +240,7 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const scriptPath = `.github/workflows/scripts/create-push-tag.js`;
+            const scriptPath = `${process.env.GITHUB_WORKSPACE}/.github/workflows/scripts/create-push-tag.js`;
             const { default: script } = await import(scriptPath);
             await script({github, context, core, process});
       - name: Setup Go
@@ -282,6 +282,6 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const scriptPath = `.github/workflows/scripts/publish-release.js`;
+            const scriptPath = `${process.env.GITHUB_WORKSPACE}/.github/workflows/scripts/publish-release.js`;
             const { default: script } = await import(scriptPath);
             await script({github, context, core, process});
