@@ -8,10 +8,6 @@ bin/
 dist/
 modules-dev/
 /pkg/
-website/.vagrant
-website/.bundle
-website/build
-website/node_modules
 .vagrant/
 *.backup
 ./*.tfstate
@@ -27,11 +23,4 @@ website/node_modules
 *.iml
 report.json
 
-website/vendor
-
-# Test exclusions
-!command/test-fixtures/**/*.tfstate
-!command/test-fixtures/**/.terraform/
-
-# Keep windows files with windows line endings
-*.winfile eol=crlf
+.nix-script.sh
