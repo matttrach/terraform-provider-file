@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.4.5](https://github.com/rancher/terraform-provider-file/compare/v2.4.4...v2.4.5) (2026-07-23)
+
+
+### Bug Fixes
+
+* add temp nix script to gitignore for release ([#338](https://github.com/rancher/terraform-provider-file/issues/338)) ([82cd2e9](https://github.com/rancher/terraform-provider-file/commit/82cd2e96c55d07af6eca62be135d37b3b18a0276))
+
 ## [2.4.4](https://github.com/rancher/terraform-provider-file/compare/v2.4.3...v2.4.4) (2026-07-23)
 
 
