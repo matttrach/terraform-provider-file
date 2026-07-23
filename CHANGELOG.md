@@ -1,5 +1,49 @@
 # Changelog
 
+## [2.4.2](https://github.com/rancher/terraform-provider-file/compare/v1.1.0-rc.0...v2.4.2) (2026-07-23)
+
+
+### Features
+
+* fix immutable release ([#268](https://github.com/rancher/terraform-provider-file/issues/268)) ([714b4b4](https://github.com/rancher/terraform-provider-file/commit/714b4b425a33d8f6d238dec9e0262277ef97ef13))
+* update flake ([#183](https://github.com/rancher/terraform-provider-file/issues/183)) ([d7c83ba](https://github.com/rancher/terraform-provider-file/commit/d7c83ba1ea391a722e56f788cdd5e600c2b260bd))
+
+
+### Bug Fixes
+
+* add a new testing harness to validate OS and kernel issues ([#328](https://github.com/rancher/terraform-provider-file/issues/328)) ([03109e7](https://github.com/rancher/terraform-provider-file/commit/03109e7b365c5d2e0dce7e49dd5a1bd1397d92d2))
+* add agentic framework, update nix flake, and remove workflows ([#322](https://github.com/rancher/terraform-provider-file/issues/322)) ([0698106](https://github.com/rancher/terraform-provider-file/commit/0698106aa2ae08dfa3f476a8759210f862d6ed28))
+* alter release-please config to release from main ([#331](https://github.com/rancher/terraform-provider-file/issues/331)) ([5e89ad0](https://github.com/rancher/terraform-provider-file/commit/5e89ad026a4eb0d9aed37e1f6e9a539df89f4e04))
+* Change how we detect release please status ([#289](https://github.com/rancher/terraform-provider-file/issues/289)) ([4061dcd](https://github.com/rancher/terraform-provider-file/commit/4061dcdefa636a138fd38c6194f11cf7832c8de8))
+* consolidate workflows, remove spinning, add acceptance test to pr ([#330](https://github.com/rancher/terraform-provider-file/issues/330)) ([60c17f4](https://github.com/rancher/terraform-provider-file/commit/60c17f436ebca00ebb35904fe871fa3a750eec89))
+* fix release and release candidate race ([#221](https://github.com/rancher/terraform-provider-file/issues/221)) ([2c3dbd8](https://github.com/rancher/terraform-provider-file/commit/2c3dbd87ce6dc72a391fd929adc8387da2b48ad2))
+* flipped conditional ([#291](https://github.com/rancher/terraform-provider-file/issues/291)) ([a5caba4](https://github.com/rancher/terraform-provider-file/commit/a5caba4244a61664cb97e30e19116d224ce480f7))
+* goreleaser tag race condition ([#188](https://github.com/rancher/terraform-provider-file/issues/188)) ([bd0cb43](https://github.com/rancher/terraform-provider-file/commit/bd0cb434015ada8152945edba1d70fe9f0cee71f))
+* install nix ([#298](https://github.com/rancher/terraform-provider-file/issues/298)) ([2232125](https://github.com/rancher/terraform-provider-file/commit/2232125dff20f716ead2ffd72f1707482124fc3f))
+* publish manual releases properly ([#281](https://github.com/rancher/terraform-provider-file/issues/281)) ([e5a8353](https://github.com/rancher/terraform-provider-file/commit/e5a835382223b78388e70b6e40e1125722e8c07f))
+* Reduce the frequency of tracking issue workflow ([#275](https://github.com/rancher/terraform-provider-file/issues/275)) ([dde2fa2](https://github.com/rancher/terraform-provider-file/commit/dde2fa26de7c60926c9246b464c8dcfc7ee24cf8))
+* refactor release to release from main, make scripts executable ([#327](https://github.com/rancher/terraform-provider-file/issues/327)) ([279a8a2](https://github.com/rancher/terraform-provider-file/commit/279a8a24ddc1728729e07f8a48ea902a84050212))
+* refactor workflows using new standard ([#325](https://github.com/rancher/terraform-provider-file/issues/325)) ([3e5b86b](https://github.com/rancher/terraform-provider-file/commit/3e5b86be263930b599543947235188d528d719e2))
+* remove all to prevent missing file errors ([#216](https://github.com/rancher/terraform-provider-file/issues/216)) ([2301db7](https://github.com/rancher/terraform-provider-file/commit/2301db76c498fe58d5da63e791409d3f5908c047))
+* remove temp testing code ([#329](https://github.com/rancher/terraform-provider-file/issues/329)) ([4f20e8e](https://github.com/rancher/terraform-provider-file/commit/4f20e8ea5aa984fff6fa597778a2b8ed5e151493))
+* resolve supply chain vulnerabilities ([#257](https://github.com/rancher/terraform-provider-file/issues/257)) ([a4e9f26](https://github.com/rancher/terraform-provider-file/commit/a4e9f2677bbc97b20523451f163a21f111574980))
+* restrict goreleaser generating rc releases ([#230](https://github.com/rancher/terraform-provider-file/issues/230)) ([1d94e1a](https://github.com/rancher/terraform-provider-file/commit/1d94e1ad263fb6ac6b9095d2e157642bb09a70bb))
+* sort directory file info objects ([#209](https://github.com/rancher/terraform-provider-file/issues/209)) ([ff5bc8d](https://github.com/rancher/terraform-provider-file/commit/ff5bc8dc7e07b22641feb7f72848bc003f0d678e))
+* tag the draft release for goreleaser ([#303](https://github.com/rancher/terraform-provider-file/issues/303)) ([6655ade](https://github.com/rancher/terraform-provider-file/commit/6655ade2f75166466981ff7a371ec381cd530bea))
+* temp file collisions ([#235](https://github.com/rancher/terraform-provider-file/issues/235)) ([0b40f57](https://github.com/rancher/terraform-provider-file/commit/0b40f575e6b76ed5b2fa56a148b1ce053e65b936))
+* update nix ([#286](https://github.com/rancher/terraform-provider-file/issues/286)) ([4509279](https://github.com/rancher/terraform-provider-file/commit/4509279071764cac4add5bd9852040cb2c25b292))
+* update tools package ([#278](https://github.com/rancher/terraform-provider-file/issues/278)) ([17c7e3c](https://github.com/rancher/terraform-provider-file/commit/17c7e3ce1f6d71d6da875f1ad819ec2cfd4b7a05))
+* upgrade CI, improve file handling in client ([#263](https://github.com/rancher/terraform-provider-file/issues/263)) ([4f94161](https://github.com/rancher/terraform-provider-file/commit/4f9416139aeda55360dd2714f8d73e426fe5d157))
+* use existing draft go release config ([#308](https://github.com/rancher/terraform-provider-file/issues/308)) ([640b39c](https://github.com/rancher/terraform-provider-file/commit/640b39c4c2f8c3a5796749eed38d4e09020ced89))
+* work around draft release ([#294](https://github.com/rancher/terraform-provider-file/issues/294)) ([8d7abdc](https://github.com/rancher/terraform-provider-file/commit/8d7abdc62f33bcbce4863029004607ee00ef3989))
+
+
+### Miscellaneous Chores
+
+* release v1.0.0 ([eb68f77](https://github.com/rancher/terraform-provider-file/commit/eb68f779005a7aa5ac51221db84d87d92f65feee))
+* release v2.2.0 ([#226](https://github.com/rancher/terraform-provider-file/issues/226)) ([c7ad518](https://github.com/rancher/terraform-provider-file/commit/c7ad518bbcf74a59043806de050e84ab749225bf))
+* Set the release version ([#333](https://github.com/rancher/terraform-provider-file/issues/333)) ([b1a5378](https://github.com/rancher/terraform-provider-file/commit/b1a53788b0a66e52e5ecc6dcf393e9f536d95423))
+
 ## [2.4.1](https://github.com/rancher/terraform-provider-file/compare/v2.4.0...v2.4.1) (2026-05-20)
 
 
