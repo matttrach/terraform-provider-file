@@ -1,6 +1,6 @@
 # Release from Main Branch
 
-**Executed Date:** July 16, 2026
+**Executed Date:** 2026-07-16
 **Purpose:** Update the release workflows and scripts so that the repository releases directly from the `main` branch instead of relying on `release/v*` branches. This simplifies the release strategy and aligns with a trunk-based development approach.
 
 ---

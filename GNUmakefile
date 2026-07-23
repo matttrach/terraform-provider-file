@@ -26,7 +26,13 @@ test:
 testacc: build
 	export REPO_ROOT="../../../."; \
 	pushd ./test; \
-	gotestsum --format standard-verbose --jsonfile report.json --post-run-command "./summarize.sh" -- ./... -v -p=1 -timeout=300s; \
+	gotestsum --format standard-verbose --jsonfile report.json --post-run-command "./summarize.sh" -- ./... -v -p=1 -timeout=900s; \
+	popd;
+
+testaccrelay: build
+	export REPO_ROOT="../../../."; \
+	pushd ./test; \
+	gotestsum --format standard-verbose --jsonfile report.json --post-run-command "./summarize.sh" -- ./... -v -p=1 -tags=relay -timeout=1800s; \
 	popd;
 
 testracc: buildrace
@@ -47,4 +53,4 @@ rt: buildrace
 	gotestsum --format standard-verbose --jsonfile report.json --post-run-command "./summarize.sh" -- ./... -v -p=100 -timeout=3000s -run=$(t); \
 	popd;
 
-.PHONY: fmt lint build install generate test testacc debug
+.PHONY: fmt lint build install generate test testacc testaccrelay debug

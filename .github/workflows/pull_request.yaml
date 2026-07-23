@@ -33,7 +33,7 @@ jobs:
           fetch-depth: 0
       - name: Lint Terraform
         id: lint-terraform
-        run: .github/workflows/scripts/nix-run.sh bash .github/workflows/scripts/lint-terraform.sh
+        run: .github/workflows/scripts/nix-run.sh bash .github/workflows/scripts/lint.sh terraform
 
   actionlint:
     name: 'Lint Workflows'
@@ -52,7 +52,7 @@ jobs:
           fetch-depth: 0
       - name: Action Lint
         id: action-lint
-        run: .github/workflows/scripts/nix-run.sh bash .github/workflows/scripts/actionlint.sh
+        run: .github/workflows/scripts/nix-run.sh bash .github/workflows/scripts/lint.sh actionlint
 
   shellcheck:
     name: 'Shellcheck'
@@ -71,7 +71,7 @@ jobs:
           fetch-depth: 0
       - name: Shell Check
         id: shell-check
-        run: .github/workflows/scripts/nix-run.sh bash .github/workflows/scripts/shellcheck.sh
+        run: .github/workflows/scripts/nix-run.sh bash .github/workflows/scripts/lint.sh shellcheck
 
   validate-commit-message:
     name: 'Validate Commit Message'
@@ -110,7 +110,7 @@ jobs:
           fetch-depth: 0
       - name: Check for secrets
         id: check-for-secrets
-        run: .github/workflows/scripts/nix-run.sh bash .github/workflows/scripts/gitleaks.sh
+        run: .github/workflows/scripts/nix-run.sh bash .github/workflows/scripts/lint.sh gitleaks
         continue-on-error: true
 
   test-compile-check:
@@ -130,7 +130,7 @@ jobs:
           fetch-depth: 0
       - name: Compile Check
         id: compile-check
-        run: .github/workflows/scripts/nix-run.sh bash .github/workflows/scripts/test-compile-check.sh
+        run: .github/workflows/scripts/nix-run.sh bash .github/workflows/scripts/test.sh compile
 
   lint-tests:
     name: 'Lint Tests'
@@ -149,4 +149,42 @@ jobs:
           fetch-depth: 0
       - name: Compile Check
         id: compile-check
-        run: .github/workflows/scripts/nix-run.sh bash .github/workflows/scripts/lint-tests.sh
+        run: .github/workflows/scripts/nix-run.sh bash .github/workflows/scripts/lint.sh tests
+
+  unit-tests:
+    name: 'Unit Tests'
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/rancher/ci-image/nix:20260603-18
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout Repository
+        id: checkout-repository
+        # https://github.com/actions/checkout/releases
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+      - name: Run Unit Tests
+        id: run-unit-tests
+        run: .github/workflows/scripts/nix-run.sh bash .github/workflows/scripts/test.sh unit
+
+  acceptance-tests:
+    name: 'Acceptance Tests (No Relay)'
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/rancher/ci-image/nix:20260603-18
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout Repository
+        id: checkout-repository
+        # https://github.com/actions/checkout/releases
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+      - name: Run Acceptance Tests
+        id: run-acc-tests
+        run: .github/workflows/scripts/nix-run.sh bash .github/workflows/scripts/test.sh acc

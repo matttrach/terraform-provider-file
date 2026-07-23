@@ -193,6 +193,12 @@ func (r *LocalResource) Create(ctx context.Context, req resource.CreateRequest, 
 	}
 
 	tflog.Debug(ctx, fmt.Sprintf("Client: #%v", r.client))
+
+	if err = r.client.Create(directory, name, contents, permString); err != nil {
+		resp.Diagnostics.AddError("Error creating file: ", err.Error())
+		return
+	}
+
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 	tflog.Debug(ctx, fmt.Sprintf("Response Object: %#v", *resp))
 }

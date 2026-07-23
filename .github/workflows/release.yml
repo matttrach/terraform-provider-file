@@ -91,13 +91,11 @@ jobs:
           PR_NUMBER: ${{ fromJson(needs.release-please-pr.outputs.pr).number }}
           GITHUB_OWNER: ${{ github.repository_owner }}
           REPO_NAME: ${{ github.event.repository.name }}
-          SERVER_URL: ${{ github.server_url }}
-          REPOSITORY: ${{ github.repository }}
-          RUN_ID: ${{ github.run_id }}
+          COMMENT_BODY: "Please make sure e2e tests pass before merging this PR! \n ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           script: |
-            const scriptPath = `.github/workflows/scripts/wait-for-e2e.js`;
+            const scriptPath = `.github/workflows/scripts/post-pr-comment.js`;
             const { default: script } = await import(scriptPath);
             await script({github, context, core, process});
       - name: Checkout Repository Again
@@ -113,10 +111,10 @@ jobs:
           cache: true
       - name: Run Unit Tests
         id: run-unit-tests
-        run: .github/workflows/scripts/nix-run.sh bash .github/workflows/scripts/run-unit-tests.sh
-      - name: Run Acceptance Tests
+        run: .github/workflows/scripts/nix-run.sh bash .github/workflows/scripts/test.sh unit
+      - name: Run All Acceptance Tests
         id: run-acc-tests
-        run: .github/workflows/scripts/nix-run.sh bash .github/workflows/scripts/run-acc-tests.sh
+        run: .github/workflows/scripts/nix-run.sh bash .github/workflows/scripts/test.sh acc-relay
       - name: Report Tests Passed
         id: report-tests-passed
         # https://github.com/actions/github-script/releases
@@ -126,11 +124,11 @@ jobs:
           PR_NUMBER: ${{ fromJson(needs.release-please-pr.outputs.pr).number }}
           GITHUB_OWNER: ${{ github.repository_owner }}
           REPO_NAME: ${{ github.event.repository.name }}
-          TEST_STATUS: passed
+          COMMENT_BODY: "Tests Passed!"
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           script: |
-            const scriptPath = `.github/workflows/scripts/report-tests.js`;
+            const scriptPath = `.github/workflows/scripts/post-pr-comment.js`;
             const { default: script } = await import(scriptPath);
             await script({github, context, core, process});
       - name: Report Tests Failed
@@ -142,11 +140,11 @@ jobs:
           PR_NUMBER: ${{ fromJson(needs.release-please-pr.outputs.pr).number }}
           GITHUB_OWNER: ${{ github.repository_owner }}
           REPO_NAME: ${{ github.event.repository.name }}
-          TEST_STATUS: failed
+          COMMENT_BODY: "Tests Failed!"
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           script: |
-            const scriptPath = `.github/workflows/scripts/report-tests.js`;
+            const scriptPath = `.github/workflows/scripts/post-pr-comment.js`;
             const { default: script } = await import(scriptPath);
             await script({github, context, core, process});
 
@@ -179,10 +177,11 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           TARGET_VERSION: ${{ needs.release-please-pr.outputs.version }}
+          CALCULATE_NEXT_RC: 'true'
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           script: |
-            const scriptPath = `.github/workflows/scripts/create-push-rc-tag.js`;
+            const scriptPath = `.github/workflows/scripts/create-push-tag.js`;
             const { default: script } = await import(scriptPath);
             await script({github, context, core, process});
       - name: Retrieve GPG Credentials
@@ -233,10 +232,16 @@ jobs:
           fetch-depth: 0
       - name: Create and Push Tag
         id: create-push-tag
+        # https://github.com/actions/github-script/releases
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           VERSION: ${{ needs.release-please-release.outputs.version }}
-          GITHUB_ACTOR: ${{ github.actor }}
-        run: .github/workflows/scripts/nix-run.sh bash .github/workflows/scripts/create-push-tag.sh
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const scriptPath = `.github/workflows/scripts/create-push-tag.js`;
+            const { default: script } = await import(scriptPath);
+            await script({github, context, core, process});
       - name: Setup Go
         id: setup-go
         # https://github.com/actions/setup-go/releases

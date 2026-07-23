@@ -1,15 +1,19 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-DIR="$(pwd)"
+# Cache starting directory
+START_DIR="$(pwd)"
+
 cd "${WORKSPACE}/tags/${TAG}"
 
+# Remove local tags except for the targeted release tag to avoid GoReleaser confusion
 tags_to_delete=$(git tag | grep -v -e "^${TAG}$" || true)
-if [ -n "$tags_to_delete" ]; then
-  echo "$tags_to_delete" | xargs git tag -d
+if [[ -n "${tags_to_delete}" ]]; then
+  echo "${tags_to_delete}" | xargs git tag -d
 fi
 
-if [ ! -f "terraform-registry-manifest.json" ]; then
+# Ensure manifest exists for the registry
+if [[ ! -f "terraform-registry-manifest.json" ]]; then
   echo "terraform-registry-manifest.json not found, creating a default one."
   cat <<EOF > terraform-registry-manifest.json
 {
@@ -20,4 +24,5 @@ if [ ! -f "terraform-registry-manifest.json" ]; then
 }
 EOF
 fi
-cd "$DIR"
+
+cd "${START_DIR}"

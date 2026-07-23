@@ -47,30 +47,39 @@ get_sort_key() {
         return
     fi
     
-    local year
-    local month
-    year=$(echo "${date_val}" | awk '{print $1}')
-    month=$(echo "${date_val}" | awk '{print $2}')
-    
-    local month_num="00"
-    case "$(echo "${month}" | tr '[:upper:]' '[:lower:]')" in
-        jan*) month_num="01" ;;
-        feb*) month_num="02" ;;
-        mar*) month_num="03" ;;
-        apr*) month_num="04" ;;
-        may*) month_num="05" ;;
-        jun*) month_num="06" ;;
-        jul*) month_num="07" ;;
-        aug*) month_num="08" ;;
-        sep*) month_num="09" ;;
-        oct*) month_num="10" ;;
-        nov*) month_num="11" ;;
-        dec*) month_num="12" ;;
-    esac
-    
-    if ! [[ "${year}" =~ ^[0-9]+$ ]]; then
-        year="0000"
+    # If the date is already in YYYY-MM-DD format (or starts with YYYY-MM)
+    if [[ "${date_val}" =~ ^([0-9]{4})-([0-9]{2})-([0-9]{2})$ ]]; then
+        echo "${BASH_REMATCH[1]}-${BASH_REMATCH[2]}"
+        return
     fi
+
+    # Otherwise, parse format like "Month Day, Year" or "Day Month Year"
+    # We clean up any commas, brackets, etc.
+    local clean_date
+    clean_date=$(echo "${date_val}" | tr -d ',')
+    
+    # Try to find a 4-digit year in the cleaned string
+    local year="0000"
+    if [[ "${clean_date}" =~ ([0-9]{4}) ]]; then
+        year="${BASH_REMATCH[1]}"
+    fi
+
+    # Try to find month
+    local month_num="00"
+    case "${lower_date}" in
+        *jan*) month_num="01" ;;
+        *feb*) month_num="02" ;;
+        *mar*) month_num="03" ;;
+        *apr*) month_num="04" ;;
+        *may*) month_num="05" ;;
+        *jun*) month_num="06" ;;
+        *jul*) month_num="07" ;;
+        *aug*) month_num="08" ;;
+        *sep*) month_num="09" ;;
+        *oct*) month_num="10" ;;
+        *nov*) month_num="11" ;;
+        *dec*) month_num="12" ;;
+    esac
     
     echo "${year}-${month_num}"
 }

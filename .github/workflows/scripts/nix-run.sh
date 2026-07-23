@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [ -z "${NIX_SSL_CERT_FILE:-}" ]; then
+if [[ -z "${NIX_SSL_CERT_FILE:-}" ]]; then
   for cert in /etc/ssl/certs/ca-certificates.crt \
               /etc/ssl/certs/ca-bundle.crt \
               /etc/pki/tls/certs/ca-bundle.crt \
               /etc/ssl/ca-bundle.pem \
               /var/lib/ca-certificates/ca-bundle.pem; do
-    if [ -f "$cert" ]; then
-      export NIX_SSL_CERT_FILE="$cert"
+    if [[ -f "${cert}" ]]; then
+      export NIX_SSL_CERT_FILE="${cert}"
       break
     fi
   done
@@ -29,9 +29,9 @@ chown -R suse:suse . || true
 
 # Ensure parent directories are traversable by the suse user
 p="$PWD"
-while [ "$p" != "/" ] && [ -n "$p" ]; do
-  chmod a+rx "$p" 2>/dev/null || true
-  p="$(dirname "$p")"
+while [[ "${p}" != "/" && -n "${p}" ]]; do
+  chmod a+rx "${p}" 2>/dev/null || true
+  p="$(dirname "${p}")"
 done
 
 sudo -E -u suse /home/suse/.nix-profile/bin/nix develop \
