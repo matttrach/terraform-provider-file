@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.4.6](https://github.com/rancher/terraform-provider-file/compare/v2.4.5...v2.4.6) (2026-07-24)
+
+
+### Bug Fixes
+
+* combine GPG import and GoReleaser steps ([#340](https://github.com/rancher/terraform-provider-file/issues/340)) ([af5f461](https://github.com/rancher/terraform-provider-file/commit/af5f4610f7a4cfc00568e0a2b9d819596fa64ec1))
+
 ## [2.4.5](https://github.com/rancher/terraform-provider-file/compare/v2.4.4...v2.4.5) (2026-07-23)
 
 
