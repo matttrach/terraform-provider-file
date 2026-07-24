@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.4.7](https://github.com/rancher/terraform-provider-file/compare/v2.4.6...v2.4.7) (2026-07-24)
+
+
+### Bug Fixes
+
+* pass github token to releaser and fix release tests ([#342](https://github.com/rancher/terraform-provider-file/issues/342)) ([ce54b27](https://github.com/rancher/terraform-provider-file/commit/ce54b277c534cc86143a51c230d080ea183ad9c2))
+
 ## [2.4.6](https://github.com/rancher/terraform-provider-file/compare/v2.4.5...v2.4.6) (2026-07-24)
 
 
