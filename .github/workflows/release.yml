@@ -213,10 +213,10 @@ jobs:
 
   # These run after release-please generates a release
   release:
+    name: 'Full Release'
     needs:
       - release-please-release
     if: needs.release-please-release.outputs.release_created == 'true'
-    name: 'Full Release'
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/rancher/ci-image/nix:20260603-18
@@ -259,20 +259,13 @@ jobs:
             secret/data/github/repo/${{ github.repository }}/signing/gpg passphrase | GPG_PASSPHRASE ;
             secret/data/github/repo/${{ github.repository }}/signing/gpg privateKeyId | GPG_KEY_ID ;
             secret/data/github/repo/${{ github.repository }}/signing/gpg privateKey | GPG_KEY
-      - name: Import GPG Key
-        id: import-gpg-key
+      - name: Run GoReleaser
+        id: run-goreleaser
         env:
           GPG_PASSPHRASE: ${{ env.GPG_PASSPHRASE }}
           GPG_KEY_ID: ${{ env.GPG_KEY_ID }}
           GPG_KEY: ${{ env.GPG_KEY }}
-        run: .github/workflows/scripts/nix-run.sh bash .github/workflows/scripts/import-gpg-key.sh
-      - name: Run GoReleaser
-        id: run-goreleaser
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GPG_KEY_ID: ${{ env.GPG_KEY_ID }}
-          GPG_PASSPHRASE: ${{ env.GPG_PASSPHRASE }}
-        run: .github/workflows/scripts/nix-run.sh bash .github/workflows/scripts/run-goreleaser.sh
+        run: .github/workflows/scripts/nix-run.sh bash .github/workflows/scripts/goreleaser.sh
       - name: Publish Release
         id: publish-release
         # https://github.com/actions/github-script/releases
