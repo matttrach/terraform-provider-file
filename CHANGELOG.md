@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.4.8](https://github.com/rancher/terraform-provider-file/compare/v2.4.7...v2.4.8) (2026-07-28)
+
+
+### Bug Fixes
+
+* update goreleaser config with some troubleshooting information ([#344](https://github.com/rancher/terraform-provider-file/issues/344)) ([136b3f1](https://github.com/rancher/terraform-provider-file/commit/136b3f112dd30dfb92bb7060de8f695a475394f4))
+
 ## [2.4.7](https://github.com/rancher/terraform-provider-file/compare/v2.4.6...v2.4.7) (2026-07-24)
 
 
