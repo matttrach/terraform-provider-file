@@ -1,6 +1,8 @@
 agentic
 authconfig
 containerize
+docker
+goreleaser
 kubeconfig
 nutanix
 pathing

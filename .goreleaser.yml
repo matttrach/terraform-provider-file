@@ -44,8 +44,9 @@ checksum:
   algorithm: sha256
 signs:
   - artifacts: checksum
+    cmd: gpg
     args:
-      - "--detach-sig"
+      - "--detach-sign"
       - "--pinentry-mode"
       - "loopback"
       - "--passphrase"
