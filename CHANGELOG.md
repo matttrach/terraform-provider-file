@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.4.10](https://github.com/rancher/terraform-provider-file/compare/v2.4.9...v2.4.10) (2026-07-29)
+
+
+### Bug Fixes
+
+* extract proper secret id from keyring ([#348](https://github.com/rancher/terraform-provider-file/issues/348)) ([80140ec](https://github.com/rancher/terraform-provider-file/commit/80140ecad7e6fdd1b8b5874257de9dc4bd0b2468))
+
 ## [2.4.9](https://github.com/rancher/terraform-provider-file/compare/v2.4.8...v2.4.9) (2026-07-29)
 
 
