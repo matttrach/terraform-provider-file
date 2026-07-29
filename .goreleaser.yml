@@ -63,5 +63,6 @@ release:
       name_template: '{{ .ProjectName }}_{{ .Version }}_manifest.json'
   draft: true
   use_existing_draft: true
+  release_notes_file: /tmp/release-notes.md
 changelog:
-  disable: true
+  disable: false

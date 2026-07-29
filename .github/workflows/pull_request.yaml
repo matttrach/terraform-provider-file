@@ -16,8 +16,32 @@ env:
 permissions: {}
 
 jobs:
+  enforce-fork-contribution:
+    name: 'Enforce Fork Contributions'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Contribution Origin
+        env:
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          BASE_REPO: ${{ github.repository }}
+          HEAD_REF: ${{ github.head_ref }}
+          ACTOR: ${{ github.actor }}
+        run: |
+          # Block anyone other than github-actions[bot] from using the release-please branch name
+          if [[ "$HEAD_REF" == "release-please--branches--main" && "$ACTOR" != "github-actions[bot]" ]]; then
+            echo "Error: Spoofing release-please branch is blocked. Only the system bot is allowed to use this branch." >&2
+            exit 1
+          fi
+
+          # Block direct pushes to main from same-repository (except for release-please PR)
+          if [[ "$HEAD_REPO" == "$BASE_REPO" && "$HEAD_REF" != "release-please--branches--main" ]]; then
+            echo "Error: Contributions are required to come from forks. Directly pushing branches to the upstream repository is blocked." >&2
+            exit 1
+          fi
+
   terraform:
     name: 'Terraform'
+    needs: enforce-fork-contribution
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/rancher/ci-image/nix:20260603-18
@@ -37,6 +61,7 @@ jobs:
 
   actionlint:
     name: 'Lint Workflows'
+    needs: enforce-fork-contribution
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/rancher/ci-image/nix:20260603-18
@@ -56,6 +81,7 @@ jobs:
 
   shellcheck:
     name: 'Shellcheck'
+    needs: enforce-fork-contribution
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/rancher/ci-image/nix:20260603-18
@@ -75,6 +101,7 @@ jobs:
 
   validate-commit-message:
     name: 'Validate Commit Message'
+    needs: enforce-fork-contribution
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/rancher/ci-image/nix:20260603-18
@@ -95,6 +122,7 @@ jobs:
 
   gitleaks:
     name: 'Scan for Secrets'
+    needs: enforce-fork-contribution
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/rancher/ci-image/nix:20260603-18
@@ -115,6 +143,7 @@ jobs:
 
   test-compile-check:
     name: 'Test Compile Check'
+    needs: enforce-fork-contribution
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/rancher/ci-image/nix:20260603-18
@@ -134,6 +163,7 @@ jobs:
 
   lint-tests:
     name: 'Lint Tests'
+    needs: enforce-fork-contribution
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/rancher/ci-image/nix:20260603-18
@@ -153,6 +183,7 @@ jobs:
 
   unit-tests:
     name: 'Unit Tests'
+    needs: enforce-fork-contribution
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/rancher/ci-image/nix:20260603-18
@@ -172,6 +203,7 @@ jobs:
 
   acceptance-tests:
     name: 'Acceptance Tests (No Relay)'
+    needs: enforce-fork-contribution
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/rancher/ci-image/nix:20260603-18

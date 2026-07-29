@@ -9,8 +9,8 @@ on:
 permissions: {}
 
 jobs:
-  release-please-release:
-    name: 'Release Please (Release Only)'
+  release-please:
+    name: 'Release Please'
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/rancher/ci-image/nix:20260603-18
@@ -19,8 +19,9 @@ jobs:
       contents: write
       pull-requests: write
     outputs:
-      version: ${{ steps.release-please-release.outputs.version }}
-      release_created: ${{ steps.release-please-release.outputs.release_created }}
+      version: ${{ steps.release-please.outputs.version || steps.release-please.outputs['.--version'] }}
+      release_created: ${{ steps.release-please.outputs.release_created }}
+      body: ${{ steps.release-please.outputs.body || steps.release-please.outputs['.--body'] }}
     steps:
       - name: Checkout Repository
         id: checkout-repository
@@ -29,216 +30,22 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Release Please (Release Only)
-        id: release-please-release
+      - name: Release Please
+        id: release-please
         # https://github.com/googleapis/release-please-action/releases
         uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
         with:
           target-branch: ${{ github.ref_name }}
           config-file: release-please-config.json
-          release-type: go
-          skip-github-pull-request: true
-
-  release-please-pr:
-    needs:
-      - release-please-release
-      - release
-    if: |
-      !cancelled() &&
-      needs.release-please-release.result == 'success' &&
-      (needs.release.result == 'success' || needs.release.result == 'skipped')
-    name: 'Release Please (PR Only)'
-    runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/rancher/ci-image/nix:20260603-18
-    timeout-minutes: 30
-    permissions:
-      contents: write
-      pull-requests: write
-    outputs:
-      pr: ${{ steps.release-please-pr.outputs.pr || steps.release-please-pr.outputs['.--pr'] }}
-      version: ${{ steps.release-please-pr.outputs.version || steps.release-please-pr.outputs['.--version'] }}
-    steps:
-      - name: Checkout Repository
-        id: checkout-repository
-        # https://github.com/actions/checkout/releases
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
-      - name: Release Please (PR Only)
-        id: release-please-pr
-        # https://github.com/googleapis/release-please-action/releases
-        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
-        with:
-          target-branch: ${{ github.ref_name }}
-          config-file: release-please-config.json
-          release-type: go
+          release-type: simple
           skip-github-release: true
-
-  # Release tests only run if release-please created or updated a PR
-  release-test:
-    needs: release-please-pr
-    if: needs.release-please-pr.outputs.pr != ''
-    name: 'Release Tests'
-    runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/rancher/ci-image/nix:20260603-18
-    timeout-minutes: 30
-    permissions:
-      contents: read
-      pull-requests: write
-    outputs:
-      outcome: ${{ steps.run-unit-tests.conclusion == 'success' && steps.run-acc-tests.conclusion == 'success' }}
-    steps:
-      - name: Checkout Repository
-        id: checkout-repository
-        # https://github.com/actions/checkout/releases
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
-      - name: Wait for E2E
-        id: wait-for-e2e
-        # https://github.com/actions/github-script/releases
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
-        env:
-          PR_NUMBER: ${{ fromJson(needs.release-please-pr.outputs.pr).number }}
-          GITHUB_OWNER: ${{ github.repository_owner }}
-          REPO_NAME: ${{ github.event.repository.name }}
-          COMMENT_BODY: "Please make sure e2e tests pass before merging this PR! \n ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-        with:
-          github-token: ${{secrets.GITHUB_TOKEN}}
-          script: |
-            const scriptPath = `${process.env.GITHUB_WORKSPACE}/.github/workflows/scripts/post-pr-comment.js`;
-            const { default: script } = await import(scriptPath);
-            await script({github, context, core, process});
-      - name: Checkout Repository Again
-        id: checkout-repository-again
-        # https://github.com/actions/checkout/releases
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Setup Go
-        id: setup-go
-        # https://github.com/actions/setup-go/releases
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        with:
-          go-version-file: 'go.mod'
-          cache: true
-      - name: Run Unit Tests
-        id: run-unit-tests
-        run: .github/workflows/scripts/nix-run.sh bash .github/workflows/scripts/test.sh unit
-      - name: Run All Acceptance Tests
-        id: run-acc-tests
-        run: .github/workflows/scripts/nix-run.sh bash .github/workflows/scripts/test.sh acc-relay
-      - name: Report Tests Passed
-        id: report-tests-passed
-        # https://github.com/actions/github-script/releases
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
-        if: always() && (steps.run-unit-tests.conclusion == 'success') && (steps.run-acc-tests.conclusion == 'success')
-        env:
-          PR_NUMBER: ${{ fromJson(needs.release-please-pr.outputs.pr).number }}
-          GITHUB_OWNER: ${{ github.repository_owner }}
-          REPO_NAME: ${{ github.event.repository.name }}
-          COMMENT_BODY: "Tests Passed!"
-        with:
-          github-token: ${{secrets.GITHUB_TOKEN}}
-          script: |
-            const scriptPath = `${process.env.GITHUB_WORKSPACE}/.github/workflows/scripts/post-pr-comment.js`;
-            const { default: script } = await import(scriptPath);
-            await script({github, context, core, process});
-      - name: Report Tests Failed
-        id: report-tests-failed
-        # https://github.com/actions/github-script/releases
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
-        if: always() && ((steps.run-unit-tests.conclusion == 'failure') || (steps.run-acc-tests.conclusion == 'failure'))
-        env:
-          PR_NUMBER: ${{ fromJson(needs.release-please-pr.outputs.pr).number }}
-          GITHUB_OWNER: ${{ github.repository_owner }}
-          REPO_NAME: ${{ github.event.repository.name }}
-          COMMENT_BODY: "Tests Failed!"
-        with:
-          github-token: ${{secrets.GITHUB_TOKEN}}
-          script: |
-            const scriptPath = `${process.env.GITHUB_WORKSPACE}/.github/workflows/scripts/post-pr-comment.js`;
-            const { default: script } = await import(scriptPath);
-            await script({github, context, core, process});
-
-  # This runs if release-please created or updated a PR, tests run and pass
-  rc-release:
-    needs:
-      - release-please-pr
-      - release-test
-    if: needs.release-please-pr.outputs.pr != '' && needs.release-test.outputs.outcome == 'true'
-    name: 'RC Release'
-    runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/rancher/ci-image/nix:20260603-18
-    timeout-minutes: 30
-    permissions:
-      contents: write
-      id-token: write
-    steps:
-      - name: Checkout Repository
-        id: checkout-repository
-        # https://github.com/actions/checkout/releases
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
-      # If the e2e tests pass we automatically generate an RC release
-      #   this shouldn't happen when the release PR is merged, only when it's opened or updated
-      - name: Calculate RC Tag via API
-        id: create-push-rc-tag
-        # https://github.com/actions/github-script/releases
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
-        env:
-          TARGET_VERSION: ${{ needs.release-please-pr.outputs.version }}
-          CALCULATE_NEXT_RC: 'true'
-        with:
-          github-token: ${{secrets.GITHUB_TOKEN}}
-          script: |
-            const scriptPath = `${process.env.GITHUB_WORKSPACE}/.github/workflows/scripts/create-push-tag.js`;
-            const { default: script } = await import(scriptPath);
-            await script({github, context, core, process});
-      - name: Create Local Tag
-        id: create-local-tag
-        env:
-          VERSION: ${{ steps.create-push-rc-tag.outputs.rc_tag }}
-        run: .github/workflows/scripts/nix-run.sh bash .github/workflows/scripts/create-local-tag.sh "${{ steps.create-push-rc-tag.outputs.rc_tag }}"
-      - name: Retrieve GPG Credentials
-        id: retrieve-gpg-credentials
-        # https://github.com/rancher-eio/read-vault-secrets/commits
-        uses: rancher-eio/read-vault-secrets@7282bf97898cd1c16c89f837e0bb442e6d384c89 # main
-        with:
-          secrets: |
-            secret/data/github/repo/${{ github.repository }}/signing/gpg passphrase | GPG_PASSPHRASE ;
-            secret/data/github/repo/${{ github.repository }}/signing/gpg privateKeyId | GPG_KEY_ID ;
-            secret/data/github/repo/${{ github.repository }}/signing/gpg privateKey | GPG_KEY
-      - name: Run GoReleaser
-        id: run-goreleaser
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GPG_KEY_ID: ${{ env.GPG_KEY_ID }}
-          GPG_PASSPHRASE: ${{ env.GPG_PASSPHRASE }}
-          GPG_KEY: ${{ env.GPG_KEY }}
-          GORELEASER_CONFIG: .goreleaser_rc.yml
-        run: .github/workflows/scripts/nix-run.sh bash .github/workflows/scripts/goreleaser.sh
-      - name: Publish RC Release
-        id: publish-rc-release
-        # https://github.com/actions/github-script/releases
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
-        env:
-          VERSION: ${{ steps.create-push-rc-tag.outputs.rc_tag }}
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const scriptPath = `${process.env.GITHUB_WORKSPACE}/.github/workflows/scripts/publish-release.js`;
-            const { default: script } = await import(scriptPath);
-            await script({github, context, core, process});
 
   # These run after release-please generates a release
   release:
     name: 'Full Release'
     needs:
-      - release-please-release
-    if: needs.release-please-release.outputs.release_created == 'true'
+      - release-please
+    if: needs.release-please.outputs.release_created == 'true'
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/rancher/ci-image/nix:20260603-18
@@ -256,8 +63,8 @@ jobs:
       - name: Create Local Tag
         id: create-local-tag
         env:
-          VERSION: ${{ needs.release-please-release.outputs.version }}
-        run: .github/workflows/scripts/nix-run.sh bash .github/workflows/scripts/create-local-tag.sh "${{ needs.release-please-release.outputs.version }}"
+          VERSION: ${{ needs.release-please.outputs.version }}
+        run: .github/workflows/scripts/nix-run.sh bash .github/workflows/scripts/create-local-tag.sh "${{ needs.release-please.outputs.version }}"
       - name: Setup Go
         id: setup-go
         # https://github.com/actions/setup-go/releases
@@ -274,6 +81,12 @@ jobs:
             secret/data/github/repo/${{ github.repository }}/signing/gpg passphrase | GPG_PASSPHRASE ;
             secret/data/github/repo/${{ github.repository }}/signing/gpg privateKeyId | GPG_KEY_ID ;
             secret/data/github/repo/${{ github.repository }}/signing/gpg privateKey | GPG_KEY
+      - name: Save Release Notes
+        id: save-release-notes
+        env:
+          RELEASE_BODY: ${{ needs.release-please.outputs.body }}
+        run: |
+          printf "%s\n" "$RELEASE_BODY" > /tmp/release-notes.md
       - name: Run GoReleaser
         id: run-goreleaser
         env:
@@ -287,7 +100,7 @@ jobs:
         # https://github.com/actions/github-script/releases
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
-          VERSION: ${{ needs.release-please-release.outputs.version }}
+          VERSION: ${{ needs.release-please.outputs.version }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |

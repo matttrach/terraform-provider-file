@@ -1,0 +1,117 @@
+name: Release PR CI
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions: {}
+
+jobs:
+  get-version:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'release-please--branches--main' && github.actor == 'github-actions[bot]'
+    name: 'Get Release Version'
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.extract-version.outputs.version }}
+    steps:
+      - name: Extract Version from PR Title
+        id: extract-version
+        env:
+          RAW_PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          VERSION=$(echo "$RAW_PR_TITLE" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
+          echo "Extracted version: $VERSION"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+  release-test:
+    needs: get-version
+    name: 'Release Tests'
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/rancher/ci-image/nix:20260603-18
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout Repository
+        id: checkout-repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Setup Go
+        id: setup-go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: 'go.mod'
+          cache: true
+      - name: Run Unit Tests
+        id: run-unit-tests
+        run: .github/workflows/scripts/nix-run.sh bash .github/workflows/scripts/test.sh unit
+      - name: Run All Acceptance Tests
+        id: run-acc-tests
+        run: .github/workflows/scripts/nix-run.sh bash .github/workflows/scripts/test.sh acc-relay
+
+  rc-release:
+    needs:
+      - get-version
+      - release-test
+    name: 'RC Release'
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/rancher/ci-image/nix:20260603-18
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - name: Checkout Repository
+        id: checkout-repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Calculate RC Tag via API
+        id: create-push-rc-tag
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          TARGET_VERSION: ${{ needs.get-version.outputs.version }}
+          CALCULATE_NEXT_RC: 'true'
+        with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          script: |
+            const scriptPath = `${process.env.GITHUB_WORKSPACE}/.github/workflows/scripts/create-push-tag.js`;
+            const { default: script } = await import(scriptPath);
+            await script({github, context, core, process});
+      - name: Create Local Tag
+        id: create-local-tag
+        env:
+          VERSION: ${{ steps.create-push-rc-tag.outputs.rc_tag }}
+        run: .github/workflows/scripts/nix-run.sh bash .github/workflows/scripts/create-local-tag.sh "${{ steps.create-push-rc-tag.outputs.rc_tag }}"
+      - name: Retrieve GPG Credentials
+        id: retrieve-gpg-credentials
+        uses: rancher-eio/read-vault-secrets@7282bf97898cd1c16c89f837e0bb442e6d384c89 # @main
+        with:
+          secrets: |
+            secret/data/github/repo/${{ github.repository }}/signing/gpg passphrase | GPG_PASSPHRASE ;
+            secret/data/github/repo/${{ github.repository }}/signing/gpg privateKeyId | GPG_KEY_ID ;
+            secret/data/github/repo/${{ github.repository }}/signing/gpg privateKey | GPG_KEY
+      - name: Run GoReleaser
+        id: run-goreleaser
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GPG_PASSPHRASE: ${{ env.GPG_PASSPHRASE }}
+          GPG_KEY_ID: ${{ env.GPG_KEY_ID }}
+          GPG_KEY: ${{ env.GPG_KEY }}
+          GORELEASER_CONFIG: .goreleaser_rc.yml
+        run: .github/workflows/scripts/nix-run.sh bash .github/workflows/scripts/goreleaser.sh
+      - name: Publish RC Release
+        id: publish-rc-release
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          VERSION: ${{ steps.create-push-rc-tag.outputs.rc_tag }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const scriptPath = `${process.env.GITHUB_WORKSPACE}/.github/workflows/scripts/publish-release.js`;
+            const { default: script } = await import(scriptPath);
+            await script({github, context, core, process});
