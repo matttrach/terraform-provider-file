@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.4.13](https://github.com/rancher/terraform-provider-file/compare/v2.4.12...v2.4.13) (2026-07-29)
+
+
+### Bug Fixes
+
+* fix release-please config putting draft in packages ([#356](https://github.com/rancher/terraform-provider-file/issues/356)) ([8445da7](https://github.com/rancher/terraform-provider-file/commit/8445da7526999445cd8337d3e633f282669bcf52))
+* resolve issues with rc releases and release testing ([#354](https://github.com/rancher/terraform-provider-file/issues/354)) ([ce43258](https://github.com/rancher/terraform-provider-file/commit/ce43258cb3c560daf58e06b641c4dbf419a14a06))
+
 ## [2.4.12](https://github.com/rancher/terraform-provider-file/compare/v2.4.11...v2.4.12) (2026-07-29)
 
 
