@@ -193,21 +193,15 @@ jobs:
             secret/data/github/repo/${{ github.repository }}/signing/gpg passphrase | GPG_PASSPHRASE ;
             secret/data/github/repo/${{ github.repository }}/signing/gpg privateKeyId | GPG_KEY_ID ;
             secret/data/github/repo/${{ github.repository }}/signing/gpg privateKey | GPG_KEY
-      - name: Import GPG Key
-        id: import-gpg-key
-        env:
-          GPG_PASSPHRASE: ${{ env.GPG_PASSPHRASE }}
-          GPG_KEY_ID: ${{ env.GPG_KEY_ID }}
-          GPG_KEY: ${{ env.GPG_KEY }}
-        run: .github/workflows/scripts/nix-run.sh bash .github/workflows/scripts/import-gpg-key.sh
       - name: Run GoReleaser
         id: run-goreleaser
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GPG_KEY_ID: ${{ env.GPG_KEY_ID }}
           GPG_PASSPHRASE: ${{ env.GPG_PASSPHRASE }}
+          GPG_KEY: ${{ env.GPG_KEY }}
           GORELEASER_CONFIG: .goreleaser_rc.yml
-        run: .github/workflows/scripts/nix-run.sh bash .github/workflows/scripts/run-goreleaser.sh
+        run: .github/workflows/scripts/nix-run.sh bash .github/workflows/scripts/goreleaser.sh
         # GoReleaser will automatically set RC releases to prerelease instead of draft (no need to publish)
 
   # These run after release-please generates a release

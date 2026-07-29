@@ -23,6 +23,7 @@ After user refinement, record final plans as markdown files in `.agent/plans/`.
 * **Executed Date:** Include an "executed date" (or "pending") to build a timeline.
 * **Purpose:** Acts as project requirements or provides historical context for future decisions.
 * **Format:** Please read `.agent/rules/plans.instructions.md` for more information on how to format and execute plans.
+* **Workflows:** All agents MUST consult the `.agent/workflows/` directory before beginning any task to understand standard, approved execution processes and ensure planning protocols are not bypassed.
 
 ## 4. Directory Structure Mapping
 

@@ -88,13 +88,6 @@ jobs:
             secret/data/github/repo/${{ github.repository }}/signing/gpg passphrase | GPG_PASSPHRASE ;
             secret/data/github/repo/${{ github.repository }}/signing/gpg privateKeyId | GPG_KEY_ID ;
             secret/data/github/repo/${{ github.repository }}/signing/gpg privateKey | GPG_KEY
-      - name: 'Import GPG Key'
-        id: import-gpg-key
-        env:
-          GPG_PASSPHRASE: ${{ env.GPG_PASSPHRASE }}
-          GPG_KEY_ID: ${{ env.GPG_KEY_ID }}
-          GPG_KEY: ${{ env.GPG_KEY }}
-        run: .github/workflows/scripts/nix-run.sh bash .github/workflows/scripts/import-gpg-key.sh
       - name: 'Setup Go'
         id: setup-go
         # https://github.com/actions/setup-go/releases
@@ -109,11 +102,12 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GPG_KEY_ID: ${{ env.GPG_KEY_ID }}
           GPG_PASSPHRASE: ${{ env.GPG_PASSPHRASE }}
+          GPG_KEY: ${{ env.GPG_KEY }}
           TAG: ${{ inputs.tag }}
           WORKING_DIR: ${{ github.workspace }}/tags/${{ inputs.tag }}
           SKIP_VALIDATE: true
           GORELEASER_CONFIG: ../../.goreleaser_rc.yml
-        run: .github/workflows/scripts/nix-run.sh bash .github/workflows/scripts/run-goreleaser.sh
+        run: .github/workflows/scripts/nix-run.sh bash .github/workflows/scripts/goreleaser.sh
       - name: 'Publish RC'
         id: publish-rc
         # https://github.com/actions/github-script/releases
