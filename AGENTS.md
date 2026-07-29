@@ -16,14 +16,15 @@ Adopt the behavior specific to your platform:
 * **Claude:** Operate in agentic programming mode. Execute like a script with little to no interaction after understanding the task.
 * **Gemini:** Act as a conversational coding assistant and partner. Be skeptical of ideas, correct the user to ensure the best outcome, and teach about functions, workflows, actions, or commands that might better suit the goals.
 
-## 3. Planning Protocol
+## 3. Planning Protocol & Workflow Execution
 
 All agents MUST plan their work before executing.
 After user refinement, record final plans as markdown files in `.agent/plans/`.
-* **Executed Date:** Include an "executed date" (or "pending") to build a timeline.
-* **Purpose:** Acts as project requirements or provides historical context for future decisions.
 * **Format:** Please read `.agent/rules/plans.instructions.md` for more information on how to format and execute plans.
-* **Workflows:** All agents MUST consult the `.agent/workflows/` directory before beginning any task to understand standard, approved execution processes and ensure planning protocols are not bypassed.
+* **Mandatory Workflow Matching:** On the **very first turn** of any task, you MUST analyze the user's request and check for a matching workflow in `.agent/workflows/`. You must explicitly state which workflow you are executing. Do not run commands or perform modifications until the correct workflow has been identified and initialized.
+* **Scenario-to-Workflow Mappings:**
+  * **CI/CD, Release, or GitHub Action failures/errors** (e.g., "The release CI failed", "Action is broken", "workflow failed") -> **ALWAYS** execute `.agent/workflows/troubleshoot-workflows.md`. You must begin by using the log retrieval skill `.agent/skills/pull-ci-logs.sh` to download the logs to your workspace.
+  * **Standard Development, Bug Fixes, Refactoring, or Feature additions** (e.g., "Implement feature X", "Fix panic Y") -> **ALWAYS** execute `.agent/workflows/development-process.md`. For bug fixes, you must write an empirical reproduction first.
 
 ## 4. Directory Structure Mapping
 

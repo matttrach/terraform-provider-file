@@ -24,6 +24,19 @@ GPG_KEY_ID=$(echo -n "${GPG_KEY_ID}" | tr -d '[:space:]')
 echo "Importing GPG key..."
 echo "${GPG_KEY}" | gpg --import --batch > /dev/null || { echo "Error: Failed to import GPG key" >&2; exit 1; }
 
+# Automatically extract the actual imported secret primary key ID from GPG.
+# This prevents mismatches where GPG_KEY_ID from Vault is configured to an encryption subkey,
+# or is otherwise mismatched/misconfigured.
+# We append '|| true' to avoid triggering pipefail if no keys are found.
+SEC_LINE=$(gpg --batch --list-secret-keys --keyid-format LONG | grep -E '^sec' | head -n1 || true)
+if [[ -n "${SEC_LINE}" ]]; then
+  DETECTED_KEY_ID=$(echo "${SEC_LINE}" | awk '{print $2}' | cut -d'/' -f2)
+  if [[ -n "${DETECTED_KEY_ID}" ]]; then
+    echo "Successfully detected GPG key ID from imported key: ${DETECTED_KEY_ID}"
+    GPG_KEY_ID="${DETECTED_KEY_ID}"
+  fi
+fi
+
 # https://www.gnupg.org/documentation/manuals/gnupg24/gpg.1.html
 # https://goreleaser.com/customization/sign/sign/
 # troubleshooting information
