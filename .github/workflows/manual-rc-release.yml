@@ -29,6 +29,12 @@ jobs:
       pull-requests: write
       actions: read
     steps:
+      - name: 'Checkout Repository'
+        id: checkout
+        # https://github.com/actions/checkout/releases
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
       - name: 'Check User In Maintainers'
         id: check-user-in-maintainers
         # https://github.com/actions/github-script/releases
@@ -47,12 +53,6 @@ jobs:
           TAG: ${{ inputs.tag }}
           EXPECTED_TYPE: rc
         run: .github/workflows/scripts/nix-run.sh bash .github/workflows/scripts/validate-tag.sh
-      - name: 'Checkout Repository'
-        id: checkout
-        # https://github.com/actions/checkout/releases
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
       - name: Create and Push RC Tag via API
         id: create-push-rc-tag
         # https://github.com/actions/github-script/releases

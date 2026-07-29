@@ -16,6 +16,10 @@
 - **Date:** 2026-07-29
 - **Purpose:** Ensure the Full Release job triggers properly when a release pull request is merged by correctly capturing the `release_created` output from the `release-please` action in manifest mode.
 
+## FixManualReleaseWorkflows
+- **Date:** 2026-07-29
+- **Purpose:** Resolve the `ERR_MODULE_NOT_FOUND` error in `manual-release.yml` and `manual-rc-release.yml` by ensuring the repository is checked out before any script execution steps are run.
+
 ## FixGoReleaserGPGMismatch
 - **Date:** 2026-07-29
 - **Purpose:** Resolve the release workflow failure (`gpg: error reading key: No secret key`) caused by GPG_KEY_ID pointing to an encryption-only subkey or being mismatched with the imported primary secret signing key.
