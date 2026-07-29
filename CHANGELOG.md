@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.4.12](https://github.com/rancher/terraform-provider-file/compare/v2.4.11...v2.4.12) (2026-07-29)
+
+
+### Bug Fixes
+
+* pass version to local tag script ([#352](https://github.com/rancher/terraform-provider-file/issues/352)) ([29665a7](https://github.com/rancher/terraform-provider-file/commit/29665a7ac93ae7c2db9660af8df1e23fa2b66a46))
+
 ## [2.4.11](https://github.com/rancher/terraform-provider-file/compare/v2.4.10...v2.4.11) (2026-07-29)
 
 
