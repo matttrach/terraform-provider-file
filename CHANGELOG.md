@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.4.15](https://github.com/rancher/terraform-provider-file/compare/v2.4.14...v2.4.15) (2026-07-29)
+
+
+### Bug Fixes
+
+* add aws credentials for full tests ([#361](https://github.com/rancher/terraform-provider-file/issues/361)) ([b45fb5f](https://github.com/rancher/terraform-provider-file/commit/b45fb5fc31424323ed9d61d4fb38ea545475a75b))
+* give id-token privileges to generate token ([#362](https://github.com/rancher/terraform-provider-file/issues/362)) ([51327d1](https://github.com/rancher/terraform-provider-file/commit/51327d17d62976140f6e25e0a89b3689b098fadd))
+* release please no longer creates releases ([#359](https://github.com/rancher/terraform-provider-file/issues/359)) ([f4ff60a](https://github.com/rancher/terraform-provider-file/commit/f4ff60ac41d6580e2281f363a1828345ef409218))
+
 ## [2.4.14](https://github.com/rancher/terraform-provider-file/compare/v2.4.13...v2.4.14) (2026-07-29)
 
 
