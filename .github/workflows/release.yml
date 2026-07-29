@@ -224,18 +224,11 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-      - name: Create and Push Tag
-        id: create-push-tag
-        # https://github.com/actions/github-script/releases
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+      - name: Create Local Tag
+        id: create-local-tag
         env:
           VERSION: ${{ needs.release-please-release.outputs.version }}
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const scriptPath = `${process.env.GITHUB_WORKSPACE}/.github/workflows/scripts/create-push-tag.js`;
-            const { default: script } = await import(scriptPath);
-            await script({github, context, core, process});
+        run: .github/workflows/scripts/nix-run.sh bash .github/workflows/scripts/create-local-tag.sh
       - name: Setup Go
         id: setup-go
         # https://github.com/actions/setup-go/releases
