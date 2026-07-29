@@ -58,5 +58,6 @@ release:
     - glob: 'terraform-registry-manifest.json'
       name_template: '{{ .ProjectName }}_{{ .Version }}_manifest.json'
   prerelease: auto
+  draft: true
 changelog:
   disable: true

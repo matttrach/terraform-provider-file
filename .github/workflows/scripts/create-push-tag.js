@@ -73,17 +73,6 @@ export default async ({ github, context, core, process }) => {
       return;
     }
 
-    // Create the tag reference
-    core.info(`Creating tag ref refs/tags/${targetTag} pointing to ${sha}...`);
-    await github.rest.git.createRef({
-      owner,
-      repo,
-      ref: `refs/tags/${targetTag}`,
-      sha,
-    });
-
-    core.info(`Successfully created tag ${targetTag}`);
-    
     // Set outputs for downstream steps if needed
     core.setOutput("tag", targetTag);
     if (calculateNextRc) {

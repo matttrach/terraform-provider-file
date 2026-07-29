@@ -49,7 +49,7 @@ jobs:
       contents: write
       pull-requests: write
     outputs:
-      pr: ${{ steps.release-please-pr.outputs.pr }}
+      pr: ${{ steps.release-please-pr.outputs.pr || steps.release-please-pr.outputs['.--pr'] }}
       version: ${{ steps.release-please-pr.outputs.version || steps.release-please-pr.outputs['.--version'] }}
     steps:
       - name: Release Please (PR Only)
@@ -171,7 +171,7 @@ jobs:
           fetch-depth: 0
       # If the e2e tests pass we automatically generate an RC release
       #   this shouldn't happen when the release PR is merged, only when it's opened or updated
-      - name: Create and Push RC Tag via API
+      - name: Calculate RC Tag via API
         id: create-push-rc-tag
         # https://github.com/actions/github-script/releases
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -184,6 +184,11 @@ jobs:
             const scriptPath = `${process.env.GITHUB_WORKSPACE}/.github/workflows/scripts/create-push-tag.js`;
             const { default: script } = await import(scriptPath);
             await script({github, context, core, process});
+      - name: Create Local Tag
+        id: create-local-tag
+        env:
+          VERSION: ${{ steps.create-push-rc-tag.outputs.rc_tag }}
+        run: .github/workflows/scripts/nix-run.sh bash .github/workflows/scripts/create-local-tag.sh "${{ steps.create-push-rc-tag.outputs.rc_tag }}"
       - name: Retrieve GPG Credentials
         id: retrieve-gpg-credentials
         # https://github.com/rancher-eio/read-vault-secrets/commits
@@ -202,7 +207,18 @@ jobs:
           GPG_KEY: ${{ env.GPG_KEY }}
           GORELEASER_CONFIG: .goreleaser_rc.yml
         run: .github/workflows/scripts/nix-run.sh bash .github/workflows/scripts/goreleaser.sh
-        # GoReleaser will automatically set RC releases to prerelease instead of draft (no need to publish)
+      - name: Publish RC Release
+        id: publish-rc-release
+        # https://github.com/actions/github-script/releases
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          VERSION: ${{ steps.create-push-rc-tag.outputs.rc_tag }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const scriptPath = `${process.env.GITHUB_WORKSPACE}/.github/workflows/scripts/publish-release.js`;
+            const { default: script } = await import(scriptPath);
+            await script({github, context, core, process});
 
   # These run after release-please generates a release
   release:
