@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.4.9](https://github.com/rancher/terraform-provider-file/compare/v2.4.8...v2.4.9) (2026-07-29)
+
+
+### Bug Fixes
+
+* sanitize go releaser inputs ([#346](https://github.com/rancher/terraform-provider-file/issues/346)) ([7ec2cae](https://github.com/rancher/terraform-provider-file/commit/7ec2cae68b22215ead004ae951385289f69dbc16))
+
 ## [2.4.8](https://github.com/rancher/terraform-provider-file/compare/v2.4.7...v2.4.8) (2026-07-28)
 
 
