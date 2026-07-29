@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.4.14](https://github.com/rancher/terraform-provider-file/compare/v2.4.13...v2.4.14) (2026-07-29)
+
+
+### Bug Fixes
+
+* add checkout before release-please and add force-tag-creation ([#357](https://github.com/rancher/terraform-provider-file/issues/357)) ([b9915ee](https://github.com/rancher/terraform-provider-file/commit/b9915ee28e99b003859ae3d91ccceb72b4b6bf51))
+
 ## [2.4.13](https://github.com/rancher/terraform-provider-file/compare/v2.4.12...v2.4.13) (2026-07-29)
 
 
