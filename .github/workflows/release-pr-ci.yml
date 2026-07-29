@@ -48,8 +48,25 @@ jobs:
       - name: Run Unit Tests
         id: run-unit-tests
         run: .github/workflows/scripts/nix-run.sh bash .github/workflows/scripts/test.sh unit
+      - name: Configure AWS Credentials
+        id: aws-creds
+        # https://github.com/aws-actions/configure-aws-credentials/releases
+        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
+        with:
+          role-to-assume: arn:aws:iam::270074865685:role/terraform-module-ci-test
+          role-session-name: ${{github.run_id}}
+          aws-region: us-west-2
+          role-duration-seconds: 28800 # 8 hours
+          output-credentials: true
       - name: Run All Acceptance Tests
         id: run-acc-tests
+        env:
+          AWS_ACCESS_KEY_ID: ${{ steps.aws-creds.outputs.aws-access-key-id }}
+          AWS_SECRET_ACCESS_KEY: ${{ steps.aws-creds.outputs.aws-secret-access-key }}
+          AWS_SESSION_TOKEN: ${{ steps.aws-creds.outputs.aws-session-token }}
+          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+          ZONE: ${{secrets.ZONE}}
+          IDENTIFIER: ${{github.run_id}}
         run: .github/workflows/scripts/nix-run.sh bash .github/workflows/scripts/test.sh acc-relay
 
   rc-release:
