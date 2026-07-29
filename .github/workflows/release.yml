@@ -228,7 +228,7 @@ jobs:
         id: create-local-tag
         env:
           VERSION: ${{ needs.release-please-release.outputs.version }}
-        run: .github/workflows/scripts/nix-run.sh bash .github/workflows/scripts/create-local-tag.sh
+        run: .github/workflows/scripts/nix-run.sh bash .github/workflows/scripts/create-local-tag.sh "${{ needs.release-please-release.outputs.version }}"
       - name: Setup Go
         id: setup-go
         # https://github.com/actions/setup-go/releases

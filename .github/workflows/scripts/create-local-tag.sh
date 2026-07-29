@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+VERSION="${1:-${VERSION:-}}"
+
 if [[ -z "${VERSION:-}" ]]; then
-  echo "Error: VERSION environment variable is required." >&2
+  echo "Error: VERSION argument or environment variable is required." >&2
   exit 1
 fi
 
