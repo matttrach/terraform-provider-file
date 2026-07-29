@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.4.11](https://github.com/rancher/terraform-provider-file/compare/v2.4.10...v2.4.11) (2026-07-29)
+
+
+### Bug Fixes
+
+* fix release please config and create local tag for goreleaser ([#350](https://github.com/rancher/terraform-provider-file/issues/350)) ([a57c6fb](https://github.com/rancher/terraform-provider-file/commit/a57c6fbe9810d7a7d4adec4523e74d9cadfce79d))
+
 ## [2.4.10](https://github.com/rancher/terraform-provider-file/compare/v2.4.9...v2.4.10) (2026-07-29)
 
 
