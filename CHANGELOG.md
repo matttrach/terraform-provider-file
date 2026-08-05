@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.4.17](https://github.com/matttrach/terraform-provider-file/compare/v2.4.16...v2.4.17) (2026-08-05)
+
+
+### Bug Fixes
+
+* add retry and backoff logic when publishing releases ([#374](https://github.com/matttrach/terraform-provider-file/issues/374)) ([ff2b1ba](https://github.com/matttrach/terraform-provider-file/commit/ff2b1bafe0c7334454af2ee2d59bceecb2cd15b5))
+* add scheduled auto-merge and Copilot AI squash-merge ([#377](https://github.com/matttrach/terraform-provider-file/issues/377)) ([1ebde79](https://github.com/matttrach/terraform-provider-file/commit/1ebde79e8666d0932a9d0dc996930988168104ef))
+* look for exact tag, grep was finding rc tags ([#371](https://github.com/matttrach/terraform-provider-file/issues/371)) ([796aab0](https://github.com/matttrach/terraform-provider-file/commit/796aab074d45bd0b3f57a717f421bf7c1ee074d9))
+* remove depth argument when looking for tag sha ([#373](https://github.com/matttrach/terraform-provider-file/issues/373)) ([1adf9a0](https://github.com/matttrach/terraform-provider-file/commit/1adf9a09f5f22365471d8240d1df0a563a7a6b70))
+* update hooks, rules, skills, workflows, and settings ([#379](https://github.com/matttrach/terraform-provider-file/issues/379)) ([bea5351](https://github.com/matttrach/terraform-provider-file/commit/bea5351f3d8f1642b8bec857f1fbceb7af398c80))
+* update readme with process for releasing workflow changes ([#372](https://github.com/matttrach/terraform-provider-file/issues/372)) ([752c5c4](https://github.com/matttrach/terraform-provider-file/commit/752c5c44302c43fc2c95904b59e42828d1d54df3))
+* upgrade commit message validation to allow scopes and enforce product-boundary semver safety ([#378](https://github.com/matttrach/terraform-provider-file/issues/378)) ([4260634](https://github.com/matttrach/terraform-provider-file/commit/4260634eb14ca5659a97e042b214e3521f664f45))
+
 ## [2.4.16](https://github.com/rancher/terraform-provider-file/compare/v2.4.15...v2.4.16) (2026-07-30)
 
 
