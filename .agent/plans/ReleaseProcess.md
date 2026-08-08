@@ -264,6 +264,7 @@ This guarantees that GPG signing never fails due to subkey mismatches, whitespac
 - [x] Update `WorkflowExecutionProtections.md` to explicitly time-bound its product claims as of August 2026, and add prominent links to the authoritative GitHub documentation pages.
 - [x] Compile and verify the refactored script with `node --check`.
 - [x] Prevent throwing restError in the fork graceful fallback path to keep the PR status check green, enabling manual maintainer merge.
+- [x] Fix the Verify Release Please Action step in `.github/workflows/release.yml` to gracefully allow skips (exit 0) when there are zero unreleased user-facing commits since the latest tag.
 
 <!-- Retrigger workflows -->
 

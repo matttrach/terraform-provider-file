@@ -47,8 +47,24 @@ jobs:
           PR: ${{ steps.release-please.outputs.pr || steps.release-please.outputs['.--pr'] }}
         run: |
           if [[ "${RELEASE_CREATED}" != "true" && -z "${PR}" ]]; then
+            # Find the absolute latest tag in the repository matching the semantic release tag format
+            LATEST_TAG=$(git tag -l "v[0-9]*" | sort -V | tail -n 1)
+            if [[ -z "${LATEST_TAG}" ]]; then
+              # Default fallback if no tag is found in the clone
+              LATEST_TAG=$(git rev-list --max-parents=0 HEAD)
+            fi
+
+            # Count any unreleased user-facing (feat/fix/breaking) commits since that latest tag
+            # shellcheck disable=SC2126
+            USER_COMMITS_COUNT=$(git log "${LATEST_TAG}..HEAD" --oneline | grep -E -i "^[a-f0-9]+ +(feat|fix)(\([^)]+\))?(!?):" | wc -l)
+
+            if [[ "${USER_COMMITS_COUNT}" -eq 0 ]]; then
+              echo "Release Please completed with a successful skip because there are zero unreleased user-facing (feat/fix) commits since tag ${LATEST_TAG}."
+              exit 0
+            fi
+
             echo "Error: Release Please did not create a release and did not create or update any pull request." >&2
-            echo "This usually indicates that release-please aborted internally or encountered an issue (e.g. outstanding untagged merged PRs)." >&2
+            echo "There are ${USER_COMMITS_COUNT} unreleased user-facing commits since tag ${LATEST_TAG}, which means Release Please aborted internally or encountered an issue (e.g. outstanding untagged merged PRs)." >&2
             exit 1
           fi
           echo "Release Please completed successfully (Release Created: ${RELEASE_CREATED}, PR: ${PR})"
