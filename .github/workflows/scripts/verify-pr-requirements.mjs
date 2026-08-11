@@ -72,9 +72,15 @@ async function verifyPullRequest({ github, context, core, pr, owner, repo, check
 
     // Filter out requirements verification and event trigger check runs to avoid deadlock
     const relevantCheckRuns = checks.check_runs.filter(r => {
-      const isIgnored = r.name === 'Verify PR Requirements' || r.name === 'Trigger Executor on Event' || r.name === 'Verify and Auto-Merge PRs';
+      const nameLower = r.name.toLowerCase();
+      const isIgnored = r.name === 'Verify PR Requirements' ||
+                        r.name === 'Trigger Executor on Event' ||
+                        r.name === 'Verify and Auto-Merge PRs' ||
+                        nameLower.includes('process pr #') ||
+                        nameLower.includes('get open prs') ||
+                        nameLower.includes('pr executor');
       if (isIgnored) {
-        core.info(`  -> Ignoring status/trigger check run to prevent deadlock: "${r.name}"`);
+        core.info(`  -> Ignoring status/trigger/executor check run to prevent deadlock: "${r.name}"`);
       }
       return !isIgnored;
     });

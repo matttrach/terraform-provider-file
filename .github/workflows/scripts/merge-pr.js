@@ -156,9 +156,7 @@ export default async ({ github, context, core, process }) => {
     } catch (directError) {
       core.warning(`Failed direct merge via gh CLI: ${directError.message}. Retrying REST API merge with merge token...`);
       try {
-        const githubModule = await import('@actions/github');
-        const mergeGithub = githubModule.getOctokit(process.env.MERGE_TOKEN);
-        await withRetry(core, () => mergeGithub.rest.pulls.merge(mergeParams));
+        await withRetry(core, () => github.rest.pulls.merge(mergeParams));
         core.info(`PR #${prNumber} merged via REST API successfully!`);
       } catch (restError) {
         core.error(`All merge attempts failed for PR #${prNumber}: ${restError.message}`);

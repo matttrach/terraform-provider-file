@@ -1,5 +1,7 @@
-// handle-merge-failure.js - Handles PR merge failure with graceful maintainer fallbacks.
+// handle-merge-failure.js - Handles PR merge failure with graceful maintainer fallbacks and prevents spam.
 // Conforms to github-script.instructions.md guidelines.
+
+const COMMENT_SIGNATURE = '<!-- fork-merge-failure-signature -->';
 
 async function withRetry(core, fn, retries = 3, delay = 2000) {
   for (let i = 0; i < retries; i++) {
@@ -46,7 +48,7 @@ export default async ({ github, context, core, process }) => {
         labels: ['ready-to-merge'],
       }));
 
-      // 2. Post detailed fork permission barrier comment
+      // 2. Post or update detailed fork permission barrier comment
       const fallbackMsg = `### 🤖 Automated Merge Failed (Permission Barrier)
 
 This PR has successfully passed all quality gates, but the automated merge attempt failed with the following error:
@@ -62,14 +64,9 @@ ${errorMessage}
 * A repository maintainer can click **Merge** manually on this PR.
 * The PR is now labeled with **ready-to-merge** to alert maintainers.`;
 
-      await withRetry(core, () => github.rest.issues.createComment({
-        owner,
-        repo,
-        issue_number: parseInt(prNumber, 10),
-        body: fallbackMsg,
-      }));
+      await updateOrPostComment({ github, core, owner, repo, prNumber: parseInt(prNumber, 10), message: fallbackMsg });
 
-      core.info(`Graceful fork fallback comment and label posted successfully.`);
+      core.info(`Graceful fork fallback comment and label handled successfully.`);
     } catch (fallbackError) {
       core.error(`Graceful fork fallback failed: ${fallbackError.message}`);
     }
@@ -77,3 +74,36 @@ ${errorMessage}
     core.error(`Merge failed for local branch PR #${prNumber}: ${errorMessage}`);
   }
 };
+
+async function updateOrPostComment({ github, core, owner, repo, prNumber, message }) {
+  const comments = await withRetry(core, () => github.paginate(github.rest.issues.listComments, {
+    owner,
+    repo,
+    issue_number: prNumber,
+  }));
+
+  const botComment = comments.find(c => c.body && c.body.includes(COMMENT_SIGNATURE));
+  const fullBody = `${message}\n\n${COMMENT_SIGNATURE}`;
+
+  if (botComment) {
+    if (botComment.body !== fullBody) {
+      core.info(`Updating existing fork-merge-failure comment on PR #${prNumber}`);
+      await withRetry(core, () => github.rest.issues.updateComment({
+        owner,
+        repo,
+        comment_id: botComment.id,
+        body: fullBody,
+      }));
+    } else {
+      core.info(`Fork-merge-failure comment on PR #${prNumber} is already up to date`);
+    }
+  } else {
+    core.info(`Posting new fork-merge-failure comment on PR #${prNumber}`);
+    await withRetry(core, () => github.rest.issues.createComment({
+      owner,
+      repo,
+      issue_number: prNumber,
+      body: fullBody,
+    }));
+  }
+}
