@@ -105,6 +105,22 @@ function main() {
   // Check for unauthorized git commit or push operations
   const isCommitOrPush = /\bgit\s+(commit|push)\b/.test(commandClean);
   if (isCommitOrPush) {
+    const bypassHook = process.env.BYPASS_COMMIT_HOOK === '1';
+    if (!bypassHook) {
+      console.log(JSON.stringify({
+        decision: "deny",
+        reason: `Security Policy Violation: Direct manual git commit and push commands are strictly prohibited in this repository.\n\n` +
+                `In accordance with Phase 6, Step 15 (Authorized Commit & Push) of 'development-process.md', you MUST use our custom, secure, and synchronized commit-and-push skill to perform commits and pushes.\n\n` +
+                `This skill automatically validates file count limits, synchronizes with upstream main, pulls from your fork remote, and executes GPG/SSH cryptographically signed and signed-off commits.\n\n` +
+                `To proceed:\n` +
+                `1. Stage your changes cleanly: \`git add <files>...\`\n` +
+                `2. Execute the commit-push skill in the chat: \`.agent/skills/commit-push.sh -m "your commit message"\`\n` +
+                `3. Provide manual confirmation and allow the skill to execute fully.`,
+        systemMessage: "🔒 Security Block: Direct git commit/push is blocked. Please run '.agent/skills/commit-push.sh -m \"...\"' to commit."
+      }));
+      process.exit(0);
+    }
+
     // Enforce proactive code review verification and file limit checks before git commit is executed
     const isCommit = /\bgit\s+commit\b/.test(commandClean);
     if (isCommit) {

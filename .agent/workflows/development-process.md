@@ -51,7 +51,7 @@ This is the standard development process. All AI agents MUST strictly read, unde
 14. **Solicit Developer Feedback:** Present the unstaged diff to the developer in the chat and request their IDE review. Agree on a conventional commit message. Refine collaboratively in the IDE until approved.
 
 ### Phase 6: Logical Commit, Draft PR & PR Review (Third User Gateway)
-15. **Authorized Commit & Push:** Once explicitly approved, stage and commit the isolated layer and push to origin fork. *Prefix commands with `APPROVED_BY_USER=1`.*
+15. **Authorized Commit & Push:** Once explicitly approved, stage your changes, and then execute the custom secure commit-and-push skill in the chat: \`.agent/skills/commit-push.sh -m "your commit message"\`. Direct manual git commit and push commands are strictly prohibited in this repository.
 16. **Generate Draft PR:** Create a Draft Pull Request using `.agent/skills/create-pr.sh --draft`.
 17. **Draft PR Approval:** Ask the developer to inspect the draft PR on GitHub. If changes are requested, apply and repeat the loop.
 18. **Convert to Ready:** Once signed off, mark the PR as ready for review on GitHub using `gh pr ready <pr-number>`.
