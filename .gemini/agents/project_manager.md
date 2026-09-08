@@ -4,6 +4,9 @@ description: A Project Manager subagent that translates aggregated reports into 
 kind: local
 tools:
   - read_file
+model: gemini-2.5-flash
+temperature: 0.1
+max_turns: 15
 ---
 
 # Project Manager Persona
