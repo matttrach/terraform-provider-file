@@ -53,7 +53,6 @@ run_container() {
   cwd_name=$(basename "${PWD}")
 
   # Ensure directories exist locally so Docker doesn't create them as root
-  mkdir -p "${HOME}/.gemini" "${HOME}/.claude"
   mkdir -p "${PWD}/.gemini/hooks" "${PWD}/.claude/hooks" "${PWD}/agent-scripts/tests"
 
   # Enforce zero-trust by hiding security infrastructure from native AI tools
@@ -83,8 +82,6 @@ run_container() {
     "-v" "${PWD}/agent-scripts:/home/suse/${cwd_name}/agent-scripts:ro"
     "-v" "${PWD}/agent-scripts/tests:/home/suse/${cwd_name}/agent-scripts/tests:rw"
 
-    "-v" "${HOME}/.gemini:/home/suse/.gemini"
-    "-v" "${HOME}/.claude:/home/suse/.claude"
     "--workdir" "/home/suse/${cwd_name}"
 
     # Persistent Docker volume for SSH configuration (like known_hosts)
@@ -134,6 +131,14 @@ run_container() {
     docker_args+=("-e" "AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}")
     docker_args+=("-e" "AWS_SESSION_TOKEN=${AWS_SESSION_TOKEN}")
     docker_args+=("-e" "AWS_REGION=${AWS_REGION:-us-west-2}")
+  fi
+
+  # Inherit AI API keys explicitly instead of mounting configuration directories
+  if [[ -n "${GEMINI_API_KEY:-}" ]]; then
+    docker_args+=("-e" "GEMINI_API_KEY=${GEMINI_API_KEY}")
+  fi
+  if [[ -n "${ANTHROPIC_API_KEY:-}" ]]; then
+    docker_args+=("-e" "ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}")
   fi
 
   # Runs either the 'gemini' or 'claude' command (with .variables sourced and gh CLI authenticated)

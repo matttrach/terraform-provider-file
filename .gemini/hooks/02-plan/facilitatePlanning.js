@@ -1,31 +1,11 @@
-import fs from 'fs';
-import path from 'path';
-import { verifyPlanGate } from '../../../agent-scripts/gating.js';
+import { verifyPlanGate } from '../../../agent-scripts/tools/approval.js';
+import { setLock, setPhase } from '../../../agent-scripts/tools/state.js';
 import { allow, deny } from '../shared.js';
 
-export function clearPrePlanFlag(targetDir) {
+export async function clearPrePlanFlag(targetDir) {
   const hookName = 'clearPrePlanFlag';
-  const requirePlanModeFile = path.join(targetDir, 'require-plan-mode.flag');
-  if (fs.existsSync(requirePlanModeFile)) {
-    try {
-      fs.unlinkSync(requirePlanModeFile);
-    } catch (err) {
-      console.warn(`Warning: Failed to delete require-plan-mode.flag. Error: ${err.message || err}`);
-    }
-  }
-
-  // Force Plan phase by setting the active planning flag inside phase-state.json
-  const stateFile = path.join(targetDir, 'phase-state.json');
-  let state = { currentPhase: 'plan' };
-  if (fs.existsSync(stateFile)) {
-    try {
-      state = JSON.parse(fs.readFileSync(stateFile, 'utf-8'));
-    } catch (err) {
-      console.warn(`Warning: Failed to parse ${stateFile}. Error: ${err.message || err}`);
-    }
-  }
-  state.currentPhase = 'plan';
-  fs.writeFileSync(stateFile, JSON.stringify(state, null, 2));
+  await setPhase(targetDir, 'plan');
+  await setLock(targetDir, false);
 
   allow(
     hookName,
@@ -33,7 +13,7 @@ export function clearPrePlanFlag(targetDir) {
   );
 }
 
-export function beforeExitPlanMode(inputData, targetDir) {
+export async function beforeExitPlanMode(inputData, targetDir) {
   // BeforeTool hook for exit_plan_mode
   const hookName = 'beforeExitPlanMode';
   const tool_name = 'exit_plan_mode';
@@ -42,7 +22,7 @@ export function beforeExitPlanMode(inputData, targetDir) {
     allow(hookName, inputData.tool_name, inputData.tool_input);
   }
 
-  const planHash = verifyPlanGate(targetDir);
+  const planHash = await verifyPlanGate(targetDir);
   if (!planHash) {
     deny(
       'Gate 1 (Planning Gate) Exit',
@@ -54,27 +34,16 @@ export function beforeExitPlanMode(inputData, targetDir) {
   allow(hookName, tool_name, inputData.tool_input);
 }
 
-export function afterExitPlanMode(inputData, targetDir) {
+export async function afterExitPlanMode(inputData, targetDir) {
   // AfterTool hook for exit_plan_mode
   if (inputData.tool_name !== 'exit_plan_mode') {
     allow('afterExitPlanMode', inputData.tool_name);
   }
 
-  // Update phase state to implement inside phase-state.json
-  const stateFile = path.join(targetDir, 'phase-state.json');
-  let state = { currentPhase: 'implement' };
-  if (fs.existsSync(stateFile)) {
-    try {
-      state = JSON.parse(fs.readFileSync(stateFile, 'utf-8'));
-    } catch (err) {
-      console.error(`🔒 Hook Error: Failed to parse phase-state.json: ${err.message}`);
-    }
-  }
-  state.currentPhase = 'implement';
-  fs.writeFileSync(stateFile, JSON.stringify(state, null, 2));
+  await setPhase(targetDir, 'implement');
 
   allow(
     'afterExitPlanMode',
-    '✅ Exited Plan Mode. Implementation phase successfully unlocked! 👉 ACTION REQUIRED: Proceed immediately to Implement your plan, then move to the Review Phase by invoking the project_manager.',
+    '✅ Exited Plan Mode. Implementation phase successfully unlocked! 👉 ACTION REQUIRED: Proceed immediately to Implement your plan, then move to the Review Phase by running the code-review.js script.',
   );
 }

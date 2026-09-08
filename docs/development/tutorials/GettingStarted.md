@@ -1,6 +1,6 @@
 # Getting Started with Local Provider Development
 
-Welcome to the `terraform-provider-file` project! This tutorial walks you through cloning the repository, establishing a hermetic development shell, building the Terraform provider binary, and running your very first local test.
+Welcome to the `terraform-provider-file` project! This tutorial walks you through cloning the repository, establishing a hermetic development shell, building the Terraform provider binary, and running your very first local unit test.
 
 ---
 

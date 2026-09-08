@@ -3,13 +3,14 @@ import { execSync } from 'child_process';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
+import { readState } from '../../agent-scripts/tools/state.js';
 
 export function deny(phaseName, reason, nextSteps) {
   const fullDetails =
     `❌ ${phaseName} Failure!\n\n` +
     `👉 REASON: ${reason}\n\n` +
     `👉 WHAT TO DO NEXT:\n${nextSteps}\n\n` +
-    `For the exact schema, templates, and proper formatting, please refer to the documentation: docs/development/AgenticFramework/AskUserComponent.md`;
+    `For the exact schema, templates, and proper formatting, please refer to the documentation: docs/development/reference/AskUserComponent.md`;
 
   console.log(
     JSON.stringify({
@@ -38,14 +39,14 @@ export function allow(hookName, tool_name, tool_input = null, prependInput = '',
         if (appendInput) {
           modifiedInput.questions[0].question = modifiedInput.questions[0].question + appendInput;
         }
-      } else if (modifiedInput.question !== undefined) {
+      } else if (modifiedInput.question !== void 0) {
         if (prependInput) {
           modifiedInput.question = prependInput + modifiedInput.question;
         }
         if (appendInput) {
           modifiedInput.question = modifiedInput.question + appendInput;
         }
-      } else if (modifiedInput.prompt !== undefined) {
+      } else if (modifiedInput.prompt !== void 0) {
         if (prependInput) {
           modifiedInput.prompt = prependInput + modifiedInput.prompt;
         }
@@ -66,15 +67,10 @@ export function allow(hookName, tool_name, tool_input = null, prependInput = '',
   process.exit(0);
 }
 
-export function getPhase(targetDir) {
-  const stateFile = path.join(targetDir, 'phase-state.json');
-  if (fs.existsSync(stateFile)) {
-    try {
-      const state = JSON.parse(fs.readFileSync(stateFile, 'utf-8'));
-      return { success: true, data: state.currentPhase };
-    } catch (err) {
-      return { success: false, error: err.message };
-    }
+export async function getPhase(targetDir) {
+  const state = await readState(targetDir);
+  if (state) {
+    return { success: true, data: state.currentPhase };
   }
   return { success: false, error: 'phase-state.json not found' };
 }
@@ -244,7 +240,7 @@ function normalizeToolResponse(response) {
   let res = safeParseJSON(response);
 
   // If the response is wrapped in an 'output' property, try to unpack it
-  if (res && res.output !== undefined) {
+  if (res && res.output !== void 0) {
     if (typeof res.output === 'string') {
       const parsedOutput = safeParseJSON(res.output);
       if (parsedOutput && typeof parsedOutput === 'object') {

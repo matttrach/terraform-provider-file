@@ -52,7 +52,7 @@ verify_push_gate() {
   # Check if user/commit approval exists and verify its signature
   if [[ ! -f "$user_approval" ]] || [[ ! -f "$user_sig" ]]; then
     echo "❌ Git Push Blocked: Missing developer cryptographic commit/push approval or signature file (Gate 3)." >&2
-    echo "AI agents must obtain developer commit-push approval via Touch ID to push code." >&2
+    echo "AI agents must obtain developer commit-push approval to push code." >&2
     exit 1
   fi
 
@@ -71,7 +71,7 @@ verify_push_gate() {
 
   if ! ssh-keygen -Y verify -f "$allowed_signers" -I gemini -n gemini -s "$user_sig" <"$user_approval" >/dev/null 2>&1; then
     echo "❌ Git Push Blocked: Developer commit/push signature verification failed (Gate 3)." >&2
-    echo "The signature is invalid or did not pass Touch ID authentication." >&2
+    echo "The signature is invalid." >&2
     rm -f "$allowed_signers"
     exit 1
   fi

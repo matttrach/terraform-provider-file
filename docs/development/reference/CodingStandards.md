@@ -1,5 +1,11 @@
 # Coding Standards & Guidelines (Reference Index)
 
+> **Blueprint Compliance:** This integration MUST adhere strictly to the **Strict 4-Phase Lifecycle** (Plan, Implement, Review, Commit) and the **Strict 3-Gate Architecture** (Planning Gate (Gate 1), Programmatic Review/Testing Gate (Gate 2), and Commit Gate (Gate 3)). Of these 3 gates, the Planning Gate and Commit Gate are user-facing. No phase or gate may be bypassed.
+
+## Abstract
+
+This document defines the dry, structured conceptual reference of **Coding Standards & Guidelines (Reference Index)** within this repository. It establishes the clinical parameters, design rules, and operational constraints for this system area, ensuring standard-compliant environment initialization and developer safety.
+
 This document is the main reference index of the repository's mandatory coding standards, security baselines, and quality criteria.
 
 All standards are structured around **Logical Architectural Domains** (e.g. Syntax/Linter, Logic/State, Concurrency/Safety, and Architecture/Testing), decoupled entirely from the review agent's execution passes to support scalable and resilient future expansions.

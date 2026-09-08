@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import path from 'path';
-import { resolveTargetDir } from '../../agent-scripts/workspace.js';
+import { resolveTargetDir } from '../../agent-scripts/tools/file.js';
 import {
   discardStdin,
   verifyNixEnvironment,
@@ -79,22 +79,22 @@ process.on('uncaughtException', (err) => {
   process.exit(1);
 });
 
-function main() {
+async function main() {
   // 1. Consume stdin inputs cleanly
   discardStdin();
 
   // 2. Resolve temporary directory and setup workspace-level state flags
-  const targetDir = resolveTargetDir();
-  initializeWorkspaceFlags(targetDir);
+  const targetDir = await resolveTargetDir();
+  await initializeWorkspaceFlags(targetDir);
 
   // 3. Diagnose the Nix hermetic shell execution environment
   const nixEnv = verifyNixEnvironment();
 
   // 4. Load repository-wide architectural specifications
-  const frameworkContext = loadFrameworkContext();
+  const frameworkContext = await loadFrameworkContext();
 
   // 5. Lock ignore/exclude files to read-only mode to prevent tampering
-  protectExcludeFiles();
+  await protectExcludeFiles();
 
   // 6. Build the combined markdown context block of mandates and guides
   const combinedContext = buildCombinedContext(nixEnv.text, frameworkContext);
@@ -103,4 +103,7 @@ function main() {
   buildStartupOutput(combinedContext, nixEnv.active);
 }
 
-main();
+main().catch((err) => {
+  console.error('::error::Fatal Startup Context Hook Error:', err.stack || err.message);
+  process.exit(1);
+});

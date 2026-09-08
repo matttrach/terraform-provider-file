@@ -4,7 +4,7 @@ description: A Data Scientist lead aggregator agent that compiles raw worker ram
 kind: local
 tools:
   - read_file
-model: inherit
+model: gemini-2.5-flash
 temperature: 0.1
 max_turns: 15
 ---

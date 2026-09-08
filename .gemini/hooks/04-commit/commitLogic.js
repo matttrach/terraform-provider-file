@@ -1,44 +1,42 @@
-import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import { handleCommitApproval } from '../../../agent-scripts/after-ask.js';
+import { writeFileSafe } from '../../../agent-scripts/tools/file.js';
+import { calculateDiffHash } from '../../../agent-scripts/tools/git.js';
+import { readState, setLock } from '../../../agent-scripts/tools/state.js';
 import {
-  calculateDiffHash,
   checkAndRevokeStaleGates,
+  handleCommitApproval,
+  readApprovalData,
+  revokeSignature,
   verifyPlanGate,
   verifyReviewGate,
-} from '../../../agent-scripts/gating.js';
+} from '../../../agent-scripts/tools/approval.js';
 import {
   allow,
   deny,
   getPhase,
   getTomlFrom,
-  validateAskUser,
-  parseToolResponse,
   hasValidSigningKey,
+  parseToolResponse,
+  validateAskUser,
 } from '../shared.js';
 
-function inPlanMode(targetDir) {
-  const phaseResult = getPhase(targetDir);
+async function inPlanMode(targetDir) {
+  const phaseResult = await getPhase(targetDir);
   return phaseResult && phaseResult.success && phaseResult.data === 'plan';
 }
 
-export function revokeReviewState(targetDir) {
-  const reviewApprovalFile = path.join(targetDir, 'review-approval.json');
-  try {
-    if (fs.existsSync(reviewApprovalFile)) {
-      fs.unlinkSync(reviewApprovalFile);
-      console.error('❌ Gate 2 (Review) Revoked: User rejected the commit. Review approval has been deleted.');
-    }
-  } catch (err) {
-    console.warn(`Warning: Failed to revoke review state. Error: ${err.message || err}`);
-  }
+export async function revokeReviewState(targetDir) {
+  await revokeSignature(targetDir, 'review-approval.json');
+  console.error('❌ Gate 2 (Review) Revoked: User rejected the commit. Review approval has been deleted.');
 }
 
-export function preCommitPhaseInterruption(inputData, targetDir) {
-  const flagFile = path.join(targetDir, 'require-ask-user.flag');
+export async function preCommitPhaseInterruption(inputData, targetDir) {
+  const state = (await readState(targetDir)) || {};
+  const locked = state.locked || false;
+  const keyTool = state.keyTool || '';
 
-  if (fs.existsSync(flagFile)) {
+  if (locked && keyTool === 'ask_user') {
     if (inputData.tool_name !== 'ask_user') {
       deny(
         'Gate 3 (Commit Gate) Intercept',
@@ -49,16 +47,9 @@ export function preCommitPhaseInterruption(inputData, targetDir) {
 
     // Present the suggested commit message from the review agent
     let suggestedCommitMessage = 'chore: automated development commit';
-    try {
-      const reviewApprovalFile = path.join(targetDir, 'review-approval.json');
-      if (fs.existsSync(reviewApprovalFile)) {
-        const approvalData = JSON.parse(fs.readFileSync(reviewApprovalFile, 'utf-8'));
-        if (approvalData.suggested_commit_message) {
-          suggestedCommitMessage = approvalData.suggested_commit_message;
-        }
-      }
-    } catch (err) {
-      console.warn('Failed to retrieve suggested commit message from review approval:', err.message);
+    const reviewMsg = await readApprovalData(targetDir, 'review-approval.json', 'suggested_commit_message');
+    if (reviewMsg) {
+      suggestedCommitMessage = reviewMsg;
     }
 
     const modifiedInput = inputData.tool_input || {};
@@ -70,9 +61,9 @@ export function preCommitPhaseInterruption(inputData, targetDir) {
 
     if (modifiedInput.questions && Array.isArray(modifiedInput.questions) && modifiedInput.questions.length > 0) {
       modifiedInput.questions[0].question = replaceCommitMsg(modifiedInput.questions[0].question) + reviewContext;
-    } else if (modifiedInput.question !== undefined) {
+    } else if (modifiedInput.question !== void 0) {
       modifiedInput.question = replaceCommitMsg(modifiedInput.question) + reviewContext;
-    } else if (modifiedInput.prompt !== undefined) {
+    } else if (modifiedInput.prompt !== void 0) {
       modifiedInput.prompt = replaceCommitMsg(modifiedInput.prompt) + reviewContext;
     } else {
       modifiedInput.question = reviewContext;
@@ -89,7 +80,7 @@ export function preCommitPhaseInterruption(inputData, targetDir) {
   }
 }
 
-export function beforeAskUserCommit(inputData, targetDir) {
+export async function beforeAskUserCommit(inputData, targetDir) {
   const { tool_name, tool_input } = inputData;
   const hookName = 'beforeAskUserCommit';
 
@@ -97,7 +88,7 @@ export function beforeAskUserCommit(inputData, targetDir) {
     allow(hookName, tool_name);
   }
 
-  if (inPlanMode(targetDir)) {
+  if (await inPlanMode(targetDir)) {
     allow(hookName, tool_name);
   }
 
@@ -148,7 +139,7 @@ export function beforeAskUserCommit(inputData, targetDir) {
     );
   }
 
-  const planHash = verifyPlanGate(targetDir);
+  const planHash = await verifyPlanGate(targetDir);
   if (!planHash) {
     deny(
       'Gate 3 (Commit Gate) Pipeline Verification',
@@ -157,23 +148,23 @@ export function beforeAskUserCommit(inputData, targetDir) {
     );
   }
 
-  const diffHash = calculateDiffHash();
+  const diffHash = await calculateDiffHash();
 
-  checkAndRevokeStaleGates(targetDir, diffHash, planHash);
+  await checkAndRevokeStaleGates(targetDir, diffHash, planHash);
 
-  const reviewPassed = verifyReviewGate(targetDir, diffHash, planHash);
+  const reviewPassed = await verifyReviewGate(targetDir, diffHash, planHash);
   if (!reviewPassed) {
     deny(
       'Gate 3 (Commit Gate) Quality Verification',
       'You cannot ask for Developer Commit Approval (Gate 3) because the Review prerequisite (Gate 2) is missing or has been invalidated by recent file changes!',
-      'Please run the Review Subagent first to perform a code review and sign the branch: invoke_agent(agent_name="project_manager", prompt="Please review my changes.")',
+      'Please run the review script first to perform a code review and sign the branch: node agent-scripts/code-review.js',
     );
   }
 
   allow(hookName, tool_name);
 }
 
-export function afterAskUserCommit(inputData, targetDir) {
+export async function afterAskUserCommit(inputData, targetDir) {
   const { tool_name, tool_input, tool_response } = inputData;
   const hookName = 'afterAskUserCommit';
 
@@ -181,17 +172,13 @@ export function afterAskUserCommit(inputData, targetDir) {
     allow(hookName, tool_name);
   }
 
-  if (inPlanMode(targetDir)) {
+  if (await inPlanMode(targetDir)) {
     allow(hookName, tool_name);
   }
 
-  const FLAG_FILE = path.join(targetDir, 'require-ask-user.flag');
-  if (fs.existsSync(FLAG_FILE)) {
-    try {
-      fs.unlinkSync(FLAG_FILE);
-    } catch (err) {
-      console.warn(`Warning: Failed to delete require-ask-user.flag. Error: ${err.message || err}`);
-    }
+  const state = await readState(targetDir);
+  if (state && state.locked && state.keyTool === 'ask_user') {
+    await setLock(targetDir, false);
   }
 
   validateAskUser(hookName, tool_name, tool_input);
@@ -214,7 +201,7 @@ export function afterAskUserCommit(inputData, targetDir) {
 
   if (!isApproved) {
     if (isCommitAsk) {
-      revokeReviewState(targetDir);
+      await revokeReviewState(targetDir);
     }
     allow(hookName, tool_name);
   }
@@ -224,14 +211,13 @@ export function afterAskUserCommit(inputData, targetDir) {
     const prDesc = tomlData['pr-description'];
 
     if (commitMsg) {
-      const reviewApprovalFile = path.join(targetDir, 'review-approval.json');
-      if (fs.existsSync(reviewApprovalFile)) {
+      const approvalData = await readApprovalData(targetDir, 'review-approval.json');
+      if (approvalData) {
         try {
-          const approvalData = JSON.parse(fs.readFileSync(reviewApprovalFile, 'utf-8'));
           approvalData.suggested_commit_message = commitMsg;
-          fs.chmodSync(reviewApprovalFile, 0o600);
-          fs.writeFileSync(reviewApprovalFile, JSON.stringify(approvalData, null, 2));
-          fs.chmodSync(reviewApprovalFile, 0o400);
+          await revokeSignature(targetDir, 'review-approval.json'); // Ensures fresh rewrite over restrictive perms
+          const reviewApprovalFile = path.join(targetDir, 'review-approval.json');
+          await writeFileSafe(reviewApprovalFile, JSON.stringify(approvalData, null, 2), { mode: 0o400 });
           console.error(`🔒 Hook Info: Updated suggested_commit_message in review-approval.json to: "${commitMsg}"`);
         } catch (err) {
           console.error('🔒 Hook Error: Failed to update review-approval.json with commit-message:', err.message);
@@ -242,8 +228,7 @@ export function afterAskUserCommit(inputData, targetDir) {
     if (prDesc) {
       const prBodyFile = path.join(targetDir, 'pr-body.md');
       try {
-        fs.mkdirSync(path.dirname(prBodyFile), { recursive: true });
-        fs.writeFileSync(prBodyFile, prDesc);
+        await writeFileSafe(prBodyFile, prDesc);
         console.error(`🔒 Hook Info: Wrote PR description to ${prBodyFile}`);
       } catch (err) {
         console.error('🔒 Hook Error: Failed to write pr-body.md:', err.message);
@@ -267,11 +252,11 @@ export function afterAskUserCommit(inputData, targetDir) {
       );
     }
 
-    const planHash = verifyPlanGate(targetDir);
-    const diffHash = calculateDiffHash();
-    checkAndRevokeStaleGates(targetDir, diffHash, planHash);
+    const planHash = await verifyPlanGate(targetDir);
+    const diffHash = await calculateDiffHash();
+    await checkAndRevokeStaleGates(targetDir, diffHash, planHash);
 
-    const reviewPassed = verifyReviewGate(targetDir, diffHash, planHash);
+    const reviewPassed = await verifyReviewGate(targetDir, diffHash, planHash);
     if (!reviewPassed) {
       allow(hookName, tool_name);
     }
@@ -279,7 +264,7 @@ export function afterAskUserCommit(inputData, targetDir) {
     const homeDir = os.homedir();
     const sshPubKeyFile = path.resolve(homeDir, '.gemini/ssh-key.pub');
     const promptText = tomlData['commit-message'] || '';
-    handleCommitApproval(targetDir, sshPubKeyFile, promptText);
+    await handleCommitApproval(targetDir, sshPubKeyFile, promptText);
   }
 
   allow(hookName, tool_name);

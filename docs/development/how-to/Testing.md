@@ -1,12 +1,18 @@
 # How to Run Linting, Formatting, and Code Quality Tests
 
-This document is a sequential, goal-oriented How-To guide for verifying code quality, formatting files, running static analysis linters, and executing the test suites in this repository.
+> **Blueprint Compliance:** This integration MUST adhere strictly to the **Strict 4-Phase Lifecycle** (Plan, Implement, Review, Commit) and the **Strict 3-Gate Architecture** (Planning Gate (Gate 1), Programmatic Review/Testing Gate (Gate 2), and Commit Gate (Gate 3)). Of these 3 gates, the Planning Gate and Commit Gate are user-facing. No phase or gate may be bypassed.
+
+## Abstract
+
+This guide provides sequential, goal-oriented instructions for verifying code quality, formatting files, running static analysis linters, and executing the test suites within our secure development environment.
 
 ---
 
 ## Step 1: Validate Your Hermetic Environment
 
 Ensure you are operating inside the secure, hermetic Nix development shell. This guarantees that all required linters, formatters, and test runners (such as `golangci-lint`, `shellcheck`, `cspell`, and `go`) are locked to their precise repository versions.
+
+---
 
 ## Step 2: Format All Codebase Assets
 
@@ -17,11 +23,13 @@ Before running linter checks or submitting code, you must format all files to sa
 make fmt
 
 # 2. Format Shell files using shfmt:
-shfmt -w .gemini/skills/code-review/scripts/code-review.sh
+shfmt -w agent-scripts/exercise-cron.sh
 
 # 3. Format JavaScript, JSON, and Markdown files using Prettier:
 npx prettier --write .
 ```
+
+---
 
 ## Step 3: Run Static Analysis & Linters
 
@@ -32,7 +40,7 @@ Execute static analysis linter checks to catch potential security vulnerabilitie
 make lint
 
 # 2. Run Shellcheck on all Bash scripts:
-shellcheck .gemini/skills/code-review/scripts/code-review.sh
+shellcheck agent-scripts/exercise-cron.sh
 
 # 3. Run ESLint on JavaScript hooks and scripts:
 npx eslint .
@@ -40,6 +48,8 @@ npx eslint .
 # 4. Run CSpell to perform spellchecking:
 cspell docs/development/reference/Go.md
 ```
+
+---
 
 ## Step 4: Execute the Go Unit Test Suite
 
@@ -49,6 +59,8 @@ Run local unit tests to verify the core provider logic and utility packages:
 # Run all Go unit and helper tests with coverage:
 make test
 ```
+
+---
 
 ## Step 5: Execute Terraform Acceptance Tests
 

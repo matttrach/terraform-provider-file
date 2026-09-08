@@ -2,7 +2,7 @@
 
 import fs from 'fs';
 import path from 'path';
-import { resolveTargetDir } from '../../agent-scripts/workspace.js';
+import { resolveTargetDir } from '../../agent-scripts/tools/file.js';
 import { clearPrePlanFlag, beforeExitPlanMode, afterExitPlanMode } from './02-plan/facilitatePlanning.js';
 import { beforeAskUserPlan, afterAskUserPlan } from './02-plan/askUserLogic.js';
 import { prePlanPhaseInterruption, verifyGateArtifactProtection } from './02-plan/interruption.js';
@@ -74,7 +74,7 @@ process.on('uncaughtException', (err) => {
   process.exit(1);
 });
 
-function main() {
+async function main() {
   let inputData;
   try {
     inputData = JSON.parse(fs.readFileSync(0, 'utf-8'));
@@ -92,25 +92,28 @@ function main() {
   // Enforce Gate Artifact Tamper Protection
   verifyGateArtifactProtection(inputData);
 
-  const targetDir = resolveTargetDir();
+  const targetDir = await resolveTargetDir();
   if (!fs.existsSync(targetDir)) {
     fs.mkdirSync(targetDir, { recursive: true });
   }
 
   const args = process.argv.slice(2);
   if (args.includes('--enter-proof')) {
-    clearPrePlanFlag(targetDir);
+    await clearPrePlanFlag(targetDir);
   } else if (args.includes('--verify-exit')) {
-    beforeExitPlanMode(inputData, targetDir);
+    await beforeExitPlanMode(inputData, targetDir);
   } else if (args.includes('--clear-plan-mode')) {
-    afterExitPlanMode(inputData, targetDir);
+    await afterExitPlanMode(inputData, targetDir);
   } else if (args.includes('--before-ask-proof')) {
-    beforeAskUserPlan(inputData, targetDir);
+    await beforeAskUserPlan(inputData, targetDir);
   } else if (args.includes('--ask-proof')) {
-    afterAskUserPlan(inputData, targetDir);
+    await afterAskUserPlan(inputData, targetDir);
   } else {
-    prePlanPhaseInterruption(inputData, targetDir);
+    await prePlanPhaseInterruption(inputData, targetDir);
   }
 }
 
-main();
+main().catch((err) => {
+  console.error('::error::Fatal Plan Phase Hook Error:', err.stack || err.message);
+  process.exit(1);
+});

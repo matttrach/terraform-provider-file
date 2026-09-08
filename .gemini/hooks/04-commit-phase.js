@@ -2,7 +2,7 @@
 
 import fs from 'fs';
 import path from 'path';
-import { resolveTargetDir } from '../../agent-scripts/workspace.js';
+import { resolveTargetDir } from '../../agent-scripts/tools/file.js';
 import { preCommitPhaseInterruption, beforeAskUserCommit, afterAskUserCommit } from './04-commit/commitLogic.js';
 
 const hookName = path.basename(process.argv[1] || '04-commit-phase.js');
@@ -72,7 +72,7 @@ process.on('uncaughtException', (err) => {
   process.exit(1);
 });
 
-function main() {
+async function main() {
   let inputData;
   try {
     inputData = JSON.parse(fs.readFileSync(0, 'utf-8'));
@@ -87,15 +87,15 @@ function main() {
     process.exit(0);
   }
 
-  const targetDir = resolveTargetDir();
+  const targetDir = await resolveTargetDir();
   const args = process.argv.slice(2);
 
   if (args.includes('--before-ask')) {
-    beforeAskUserCommit(inputData, targetDir);
+    await beforeAskUserCommit(inputData, targetDir);
   } else if (args.includes('--after-ask')) {
-    afterAskUserCommit(inputData, targetDir);
+    await afterAskUserCommit(inputData, targetDir);
   } else {
-    preCommitPhaseInterruption(inputData, targetDir);
+    await preCommitPhaseInterruption(inputData, targetDir);
     console.log(
       JSON.stringify({
         decision: 'allow',
@@ -106,4 +106,7 @@ function main() {
   }
 }
 
-main();
+main().catch((err) => {
+  console.error('::error::Fatal Commit Phase Hook Error:', err.stack || err.message);
+  process.exit(1);
+});

@@ -1,6 +1,8 @@
 import fs from 'fs';
 import path from 'path';
-import { execSync } from 'child_process';
+import { readFileSafe } from '../../../agent-scripts/tools/file.js';
+import { gitRevParseShowToplevel } from '../../../agent-scripts/tools/git.js';
+import { initializeState } from '../../../agent-scripts/tools/state.js';
 import { deny } from '../shared.js';
 
 /**
@@ -36,13 +38,14 @@ export function verifyNixEnvironment() {
 /**
  * Loads the standing Agentic Framework architectural specification document.
  */
-export function loadFrameworkContext() {
+export async function loadFrameworkContext() {
   const frameworkDocPath = 'docs/development/AgenticFramework.md';
   let context = '';
 
-  if (fs.existsSync(frameworkDocPath)) {
+  const frameworkDoc = await readFileSafe(frameworkDocPath);
+  if (frameworkDoc) {
     context += '# Context from docs/development/AgenticFramework.md\n\n';
-    context += fs.readFileSync(frameworkDocPath, 'utf-8');
+    context += frameworkDoc;
     context += '\n\n';
     console.error(`Loaded ${frameworkDocPath}`);
   } else {
@@ -56,28 +59,10 @@ export function loadFrameworkContext() {
  * Enforces Plan Mode entry on startup by setting up plan-mode flag files
  * and initializing the central phase state machine (FAIL-FAST).
  */
-export function initializeWorkspaceFlags(targetDir) {
+export async function initializeWorkspaceFlags(targetDir) {
   try {
-    fs.mkdirSync(targetDir, { recursive: true });
-    fs.writeFileSync(path.join(targetDir, 'require-plan-mode.flag'), 'true', 'utf-8');
-    console.error('require-plan-mode.flag written successfully.');
-  } catch (err) {
-    deny(
-      'Startup Phase Directory Initialization',
-      `Failed to initialize the session temporary state directory or write planning flags. Error: ${err.message}`,
-      `Ensure that the workspace temporary directory path is fully writeable, that you have adequate disk space, and that the path exists: ${targetDir}`,
-    );
-  }
-
-  try {
-    const stateFile = path.join(targetDir, 'phase-state.json');
-    fs.writeFileSync(stateFile, JSON.stringify({ currentPhase: 'plan' }, null, 2));
+    await initializeState(targetDir);
     console.error('phase-state.json initialized successfully to plan.');
-
-    const requireAskUserFile = path.join(targetDir, 'require-ask-user.flag');
-    if (fs.existsSync(requireAskUserFile)) {
-      fs.unlinkSync(requireAskUserFile);
-    }
   } catch (err) {
     deny(
       'Startup Phase State Initialization',
@@ -90,11 +75,11 @@ export function initializeWorkspaceFlags(targetDir) {
 /**
  * Locks the .aiexclude and .claudeignore files to read-only mode to prevent agent tampering (NON-CRITICAL).
  */
-export function protectExcludeFiles() {
+export async function protectExcludeFiles() {
   try {
     let repoRoot = process.cwd();
     try {
-      repoRoot = execSync('git rev-parse --show-toplevel', { stdio: 'pipe' }).toString().trim();
+      repoRoot = await gitRevParseShowToplevel();
     } catch (err) {
       console.error(`🔒 Hook Warning: Failed to determine git repo root: ${err.message}`);
     }
@@ -120,7 +105,7 @@ export function buildCombinedContext(nixText, frameworkContext) {
   const mandateHeader = `###############################################################################
 #                           CRITICAL AGENT MANDATES                                 #
 #                                                                                   #
-# 1. YOU MUST FOLLOW THE DEVELOPMENT PROCESS IN 'docs/development/AgenticFramework.md'. #
+# 1. YOU MUST FOLLOW THE DEVELOPMENT PROCESS IN 'docs/development/how-to/DevelopmentProcess.md'. #
 # 2. YOU ARE STRICTLY FORBIDDEN FROM EXECUTING ANY COMMIT OR PUSH COMMANDS.         #
 #    COMMITS AND PUSHES ARE SOLELY MANAGED OUT-OF-BAND BY SYSTEM HOOKS.             #
 # 3. SOURCE EDITS ARE BLOCKED UNTIL PLAN APPROVAL IS GRANTED.                       #

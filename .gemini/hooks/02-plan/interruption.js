@@ -1,10 +1,13 @@
-import fs from 'fs';
 import path from 'path';
+import { readState } from '../../../agent-scripts/tools/state.js';
 import { allow, deny } from '../shared.js';
 
-export function prePlanPhaseInterruption(inputData, targetDir) {
-  const requirePlanModeFile = path.join(targetDir, 'require-plan-mode.flag');
-  if (fs.existsSync(requirePlanModeFile)) {
+export async function prePlanPhaseInterruption(inputData, targetDir) {
+  const state = (await readState(targetDir)) || {};
+  const locked = state.locked || false;
+  const keyTool = state.keyTool || '';
+
+  if (locked && keyTool === 'enter_plan_mode') {
     if (inputData.tool_name !== 'enter_plan_mode') {
       deny(
         'Gate 1 (Planning Gate) Intercept',
