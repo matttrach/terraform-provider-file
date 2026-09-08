@@ -72,7 +72,30 @@ process.on('uncaughtException', (err) => {
   process.exit(1);
 });
 
+function restoreSshAgent() {
+  if (process.env.SSH_AUTH_SOCK) {
+    return;
+  }
+  if (process.platform === 'darwin') {
+    try {
+      const tmpDir = '/private/tmp';
+      const dirs = fs.readdirSync(tmpDir).filter((d) => d.startsWith('com.apple.launchd.'));
+      for (const d of dirs) {
+        const listenerPath = path.join(tmpDir, d, 'Listeners');
+        if (fs.existsSync(listenerPath)) {
+          process.env.SSH_AUTH_SOCK = listenerPath;
+          console.error(`🔒 Hook Info: Dynamically restored SSH_AUTH_SOCK to ${listenerPath}`);
+          return;
+        }
+      }
+    } catch (err) {
+      console.error(`🔒 Hook Warning: Failed to restore SSH agent dynamically: ${err.message}`);
+    }
+  }
+}
+
 async function main() {
+  restoreSshAgent();
   let inputData;
   try {
     inputData = JSON.parse(fs.readFileSync(0, 'utf-8'));
