@@ -66,6 +66,7 @@ mktemp
 modularly
 mtimes
 nixpkgs
+noloop
 nosec
 numtide
 nutanix
@@ -104,10 +105,12 @@ stringplanmodifier
 subkey
 svchost
 tagparser
+templatefile
 terraformrc
 testacc
 testaccrelay
 testracc
+tfbackend
 tflint
 tflog
 tfplugindocs

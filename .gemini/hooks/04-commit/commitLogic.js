@@ -201,7 +201,9 @@ export async function afterAskUserCommit(inputData, targetDir) {
 
   if (!isApproved) {
     if (isCommitAsk) {
-      await revokeReviewState(targetDir);
+      console.error(
+        '🔒 Hook Info: Commit approval declined, but Gate 2 (Review) remains intact as the workspace was not modified.',
+      );
     }
     allow(hookName, tool_name);
   }

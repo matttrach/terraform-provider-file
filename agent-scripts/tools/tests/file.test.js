@@ -3,6 +3,7 @@ import assert from 'node:assert';
 import fs from 'fs';
 import path from 'path';
 import { writeFileSafe, readFileSafe, resolveTargetDir } from '../file.js';
+import { gitRevParseShowToplevel } from '../git.js';
 
 test('tools file.js re-export tests', async (t) => {
   const tempFile = path.resolve('agent-scripts/tools/tests/temp-tool-test-file.txt');
@@ -24,6 +25,8 @@ test('tools file.js re-export tests', async (t) => {
 
   await t.test('resolveTargetDir exported by tools works as expected', async () => {
     const targetDir = await resolveTargetDir();
-    assert.ok(targetDir.endsWith(path.join('.gemini', 'tmp', 'terraform-provider-file')));
+    const topLevel = await gitRevParseShowToplevel();
+    const repoName = path.basename(topLevel);
+    assert.ok(targetDir.endsWith(path.join('.gemini', 'tmp', repoName)));
   });
 });

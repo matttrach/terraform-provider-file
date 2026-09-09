@@ -648,8 +648,8 @@ export async function verifySafeGitCommand(commandClean, cwd = process.cwd()) {
         let prInfo = null;
         try {
           prInfo = await prView(currentBranch, ['isDraft', 'number'], cwd);
-        } catch {
-          // Ignore if no PR
+        } catch (err) {
+          console.error('🔒 Hook Info: PR not found or API unreachable:', err.message || err);
         }
 
         if (prInfo && prInfo.isDraft === true) {

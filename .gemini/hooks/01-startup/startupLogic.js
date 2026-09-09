@@ -137,10 +137,8 @@ export function buildCombinedContext(nixText, frameworkContext) {
 # 5. Updating documentation to describe the changes.                                #
 #                                                                                   #
 # MAP-REDUCE REVIEW PIPELINE INSTRUCTIONS:                                          #
-# When invoking the project_manager, you must explicitly instruct it to check for:  #
-# security, coding standards, spelling/wording, and an automation audit.            #
-# It must also be instructed to provide a Commit Title and Commit Message,          #
-# and output an explicit approval status.                                           #
+# Run the local code-review.js agent script to initiate the automated Map-Reduce    #
+# review pipeline, which executes tests, audits, and obtains Gate 2 signatures.     #
 ###############################################################################\n`;
 
   const actionPrompt = `\n👉 ACTION REQUIRED: You must call the \`enter_plan_mode\` tool to formally enter the Plan Phase before utilizing other tools or modifying code.\n`;

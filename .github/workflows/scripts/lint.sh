@@ -219,11 +219,13 @@ parse_args() {
 main() {
   parse_args "${@}"
 
-  # Defensive check: if Go files exist but go.mod is missing, fail early to prevent silent skipped tests
+  # Defensive check: if Go files exist but no go.mod is present anywhere, fail early to prevent silent skipped tests
   local go_files
   go_files=$(git ls-files "*.go" 2>/dev/null | head -n 1)
-  if [[ -n "${go_files}" && ! -f "go.mod" ]]; then
-    echo "Error: Go source files were found, but go.mod is missing!" >&2
+  local go_mods
+  go_mods=$(find . -name "go.mod" -not -path "*/.terraform/*" | head -n 1)
+  if [[ -n "${go_files}" && -z "${go_mods}" ]]; then
+    echo "Error: Go source files were found, but no go.mod is present!" >&2
     exit 1
   fi
 

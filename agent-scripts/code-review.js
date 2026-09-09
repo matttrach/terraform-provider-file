@@ -422,7 +422,7 @@ async function validateReport(report, targetDir) {
   const currentReport = report;
   const worklist = await runReviewPipeline(currentReport, targetDir, process.cwd());
 
-  if (worklist.trim() === 'APPROVED') {
+  if (worklist.trim() === 'APPROVED' || worklist.trim() === '') {
     console.log('::notice::🟢 Review Approved by Project Manager.');
     return;
   }

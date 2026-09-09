@@ -4,6 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { writeFileSafe, readFileSafe, fileExistsSafe, deleteFileSafe, resolveTargetDir } from '../file.js';
 import { healApprovalState } from '../approval.js';
+import { gitRevParseShowToplevel } from '../git.js';
 
 test('file.js utilities tests', async (t) => {
   const tempFile = path.resolve('agent-scripts/lib/tests/temp-test-file.txt');
@@ -36,7 +37,9 @@ test('file.js utilities tests', async (t) => {
 
   await t.test('resolveTargetDir resolves correct temporary directory', async () => {
     const targetDir = await resolveTargetDir();
-    assert.ok(targetDir.endsWith(path.join('.gemini', 'tmp', 'terraform-provider-file')));
+    const topLevel = await gitRevParseShowToplevel();
+    const repoName = path.basename(topLevel);
+    assert.ok(targetDir.endsWith(path.join('.gemini', 'tmp', repoName)));
   });
 
   await t.test('healApprovalState purges files for correct gates', async () => {
