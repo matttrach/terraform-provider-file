@@ -419,10 +419,11 @@ export async function runAutomatedCommitAndPush(targetDir, commitMessage, cwd = 
         maxBuffer: 10 * 1024 * 1024,
       },
     );
-    if (prOut && prOut.trim()) {
-      console.log(`::notice::${prOut.trim()}`);
+    const prUrl = prOut ? prOut.trim() : '';
+    if (prUrl) {
+      console.log(`::notice::${prUrl}`);
     }
-    process.exit(0);
+    return prUrl;
   } catch (err) {
     const errorLogFileName = 'commit-push-error.log';
     const errorLog = path.join(targetDir, 'logs', errorLogFileName);
