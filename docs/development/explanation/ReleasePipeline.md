@@ -1,5 +1,7 @@
 # Release Process & Automation (Conceptual Explanation)
 
+> **Blueprint Compliance:** This integration MUST adhere strictly to the **Strict 4-Phase Lifecycle** (Plan, Implement, Review, Commit) and the **Strict 3-Gate Architecture** (Planning Gate (Gate 1), Programmatic Review/Testing Gate (Gate 2), and Commit Gate (Gate 3)). Of these 3 gates, the Planning Gate and Commit Gate are user-facing. No phase or gate may be bypassed.
+
 This document provides a conceptual, architectural explanation of the automated release pipeline, tracing how codebase changes on the `main` branch are packaged, GPG-signed, and published to production.
 
 ---

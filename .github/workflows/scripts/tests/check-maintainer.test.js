@@ -6,10 +6,14 @@ test('check-maintainer.js tests', async (t) => {
 
   await t.test('returns true when actor is in maintainers list', async () => {
     const coreLogs = [];
+    const outputs = {};
     const core = {
       info: (msg) => coreLogs.push(msg),
       setFailed: (msg) => {
         throw new Error(msg);
+      },
+      setOutput: (key, val) => {
+        outputs[key] = val;
       },
     };
     const context = {
@@ -21,23 +25,27 @@ test('check-maintainer.js tests', async (t) => {
       },
     };
 
-    const result = await checkMaintainer({
+    await checkMaintainer({
       github: {},
       context,
       core,
       process: localProcess,
     });
 
-    assert.strictEqual(result, true);
+    assert.strictEqual(outputs['is_maintainer'], true);
     assert.ok(coreLogs.includes('Actor: matttrach, Is Maintainer: true'));
   });
 
   await t.test('returns false when actor is not in maintainers list', async () => {
     const coreLogs = [];
+    const outputs = {};
     const core = {
       info: (msg) => coreLogs.push(msg),
       setFailed: (msg) => {
         throw new Error(msg);
+      },
+      setOutput: (key, val) => {
+        outputs[key] = val;
       },
     };
     const context = {
@@ -49,34 +57,39 @@ test('check-maintainer.js tests', async (t) => {
       },
     };
 
-    const result = await checkMaintainer({
+    await checkMaintainer({
       github: {},
       context,
       core,
       process: localProcess,
     });
 
-    assert.strictEqual(result, false);
+    assert.strictEqual(outputs['is_maintainer'], false);
     assert.ok(coreLogs.includes('Actor: external_user, Is Maintainer: false'));
   });
 
   await t.test('fails when TERRAFORM_MAINTAINERS is missing', async () => {
     const failedMessages = [];
+    const outputs = {};
     const core = {
       info: () => {},
       setFailed: (msg) => failedMessages.push(msg),
+      setOutput: (key, val) => {
+        outputs[key] = val;
+      },
     };
     const context = { actor: 'matttrach' };
     const localProcess = { env: {} };
 
-    const result = await checkMaintainer({
+    await checkMaintainer({
       github: {},
       context,
       core,
       process: localProcess,
     });
 
-    assert.strictEqual(result, false);
+    assert.strictEqual(outputs['is_maintainer'], false);
+    assert.strictEqual(failedMessages.length, 1);
     assert.ok(failedMessages[0].includes('TERRAFORM_MAINTAINERS environment variable is not defined'));
   });
 });

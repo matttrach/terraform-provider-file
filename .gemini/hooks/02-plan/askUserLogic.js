@@ -1,24 +1,23 @@
-import { handlePlanApproval } from '../../../agent-scripts/after-ask.js';
-import { findLatestActivePlan } from '../../../agent-scripts/gating.js';
-import { validatePlanContent } from '../../../agent-scripts/planning.js';
+import os from 'os';
+import path from 'path';
+import { findLatestActivePlan, validatePlanContent } from '../../../agent-scripts/tools/plan.js';
+import { handlePlanApproval } from '../../../agent-scripts/tools/approval.js';
 import {
   allow,
   deny,
   getPhase,
-  parseToolResponse,
-  validateAskUser,
   getTomlFrom,
   hasValidSigningKey,
+  parseToolResponse,
+  validateAskUser,
 } from '../shared.js';
-import path from 'path';
-import os from 'os';
 
-function inPlanPhase(targetDir) {
-  const phaseResult = getPhase(targetDir);
+async function inPlanPhase(targetDir) {
+  const phaseResult = await getPhase(targetDir);
   return phaseResult && phaseResult.success && phaseResult.data === 'plan';
 }
 
-export function beforeAskUserPlan(inputData, targetDir) {
+export async function beforeAskUserPlan(inputData, targetDir) {
   const { tool_name, tool_input } = inputData;
   const hookName = 'beforeAskUserPlan';
 
@@ -28,22 +27,21 @@ export function beforeAskUserPlan(inputData, targetDir) {
   const intent = tomlData.intent.trim().toLowerCase();
 
   // If the agent is trying to request plan approval but we aren't in the plan phase, explicitly deny and guide them
-  if (intent === 'plan approval' && !inPlanPhase(targetDir)) {
-    const phaseRes = getPhase(targetDir);
+  if (intent === 'plan approval' && !(await inPlanPhase(targetDir))) {
+    const phaseRes = await getPhase(targetDir);
     const currentPhase = phaseRes && phaseRes.success ? phaseRes.data : 'unknown';
-    const statePath = path.join(targetDir, 'phase-state.json');
     deny(
       'Gate 1 (Planning Gate) Phase Validation',
       `You are attempting to request plan approval, but the workspace is currently in the "${currentPhase}" phase.`,
       "To request plan approval, the workspace must be in the 'plan' phase.\n" +
-        `If you need to re-verify or change your plan, you must reset the phase state file at ${statePath} to:\n` +
-        '{\n  "currentPhase": "plan"\n}\n' +
-        'Once you reset the phase-state file, re-run the `ask_user` tool with intent = "plan approval".',
+        `If you need to re-verify or change your plan, run the state CLI to fix:\n` +
+        '`node agent-scripts/tools/state.js set-phase plan`\n' +
+        'Once you reset the phase-state, re-run the `ask_user` tool with intent = "plan approval".',
     );
   }
 
   // If we are in another phase and asking standard questions, pass through safely
-  if (!inPlanPhase(targetDir)) {
+  if (!(await inPlanPhase(targetDir))) {
     allow(hookName, tool_name);
   }
 
@@ -69,7 +67,7 @@ export function beforeAskUserPlan(inputData, targetDir) {
   }
 
   // Verify the plan is valid before allowing ask_user to prompt the user
-  const activePlan = findLatestActivePlan(targetDir);
+  const activePlan = await findLatestActivePlan(targetDir);
   if (!activePlan) {
     deny(
       'Gate 1 (Planning Gate) Pipeline Verification',
@@ -78,7 +76,7 @@ export function beforeAskUserPlan(inputData, targetDir) {
     );
   }
 
-  const validation = validatePlanContent(activePlan);
+  const validation = await validatePlanContent(activePlan);
   if (!validation.valid) {
     const errorsList = validation.errors.map((err) => `  - ${err}`).join('\n');
     deny(
@@ -92,7 +90,7 @@ export function beforeAskUserPlan(inputData, targetDir) {
   allow(hookName, tool_name);
 }
 
-export function afterAskUserPlan(inputData, targetDir) {
+export async function afterAskUserPlan(inputData, targetDir) {
   const { tool_name, tool_input, tool_response } = inputData;
   const hookName = 'afterAskUserPlan';
 
@@ -102,13 +100,13 @@ export function afterAskUserPlan(inputData, targetDir) {
   const intent = tomlData.intent.trim().toLowerCase();
 
   // If the agent is trying to approve plan but we aren't in the plan phase, explicitly deny and guide them
-  if (intent === 'plan approval' && !inPlanPhase(targetDir)) {
-    const phaseRes = getPhase(targetDir);
+  if (intent === 'plan approval' && !(await inPlanPhase(targetDir))) {
+    const phaseRes = await getPhase(targetDir);
     const currentPhase = phaseRes && phaseRes.success ? phaseRes.data : 'unknown';
     deny(
       'Gate 1 (Planning Gate) Phase Validation',
       `You are attempting to approve the plan, but the workspace is currently in the "${currentPhase}" phase.`,
-      "To approve the plan, the workspace must be in the 'plan' phase. Reset phase-state.json to 'plan' first.",
+      "To approve the plan, the workspace must be in the 'plan' phase. Run the state CLI to fix: `node agent-scripts/tools/state.js set-phase plan`",
     );
   }
 
@@ -135,21 +133,23 @@ export function afterAskUserPlan(inputData, targetDir) {
     deny(
       'Gate 1 (Planning Gate) Cryptographic Setup',
       'SSH key signing is not configured properly or your SSH agent is offline.',
-      'To resolve this, please perform the following setup steps:\n' +
-        '1. Ensure your SSH agent is running: eval "$(ssh-agent -s)"\n' +
-        '2. Generate an SSH key if you do not have one under ~/.gemini/:\n' +
-        '   ssh-keygen -t ed25519 -f ~/.gemini/ssh-key -C "gemini-signing-key"\n' +
-        '3. Add your SSH key to the active ssh-agent:\n' +
-        '   ssh-add ~/.gemini/ssh-key\n' +
-        '4. Ensure your public key exists and is readable at ~/.gemini/ssh-key.pub.\n\n' +
-        'Once configured, re-run the `ask_user` tool with intent = "plan approval".',
+      'To fail-forward and fix this instantly, run the following troubleshooting commands in your local shell:\n\n' +
+        '  eval "$(ssh-agent -s)"\n' +
+        '  ssh-add ~/.gemini/ssh-key\n\n' +
+        'For detailed setup guidance, please see the developer setup documentation: docs/development/tutorials/GettingStarted.md',
     );
   }
 
   const homeDir = os.homedir();
   const sshPubKeyFile = path.resolve(homeDir, '.gemini/ssh-key.pub');
   const planContent = tomlData.plan;
-  const result = handlePlanApproval(targetDir, sshPubKeyFile, planContent);
+  const result = await handlePlanApproval(targetDir, sshPubKeyFile, planContent);
 
-  allow(hookName, tool_name, tool_input, '', '\n\n' + result.systemMessage + ' You may now call exit_plan_mode.');
+  allow(
+    hookName,
+    tool_name,
+    tool_input,
+    '',
+    '\n\n' + (result ? result.systemMessage : '') + ' You may now call exit_plan_mode.',
+  );
 }

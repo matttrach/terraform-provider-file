@@ -1,17 +1,15 @@
-#!/usr/bin/env node
-
 import fs from 'fs';
 import path from 'path';
 
-function getFiles(dir, fileList = []) {
-  const files = fs.readdirSync(dir);
+async function getFiles(dir, fileList = []) {
+  const files = await fs.promises.readdir(dir);
   for (const file of files) {
     const filePath = path.join(dir, file);
-    const stat = fs.statSync(filePath);
+    const stat = await fs.promises.stat(filePath);
     if (stat.isDirectory()) {
       // Skip node_modules and .git
       if (file !== 'node_modules' && file !== '.git') {
-        getFiles(filePath, fileList);
+        await getFiles(filePath, fileList);
       }
     } else if (file.endsWith('.js') || file.endsWith('.mjs')) {
       fileList.push(filePath);
@@ -20,63 +18,95 @@ function getFiles(dir, fileList = []) {
   return fileList;
 }
 
-function checkCatchInFiles() {
-  const rootDir = process.cwd();
-  const files = getFiles(rootDir);
-  let failed = false;
+export default async ({ core, process }) => {
+  try {
+    const rootDir = process.env.GITHUB_WORKSPACE || process.cwd();
+    const files = await getFiles(rootDir);
+    let failed = false;
 
-  console.log(
-    `🔍 Scanning ${files.length} JavaScript files for 'catch' statements without an explicit error binding...`,
-  );
+    core.info(
+      `🔍 Scanning ${files.length} JavaScript files for 'catch' statements without an explicit error binding...`,
+    );
 
-  for (const file of files) {
-    // Relative path for cleaner output
-    const relativePath = path.relative(rootDir, file);
-    let content = fs.readFileSync(file, 'utf-8');
+    for (const file of files) {
+      // Relative path for cleaner output
+      const relativePath = path.relative(rootDir, file);
+      let content = await fs.promises.readFile(file, 'utf-8');
 
-    // Strip block comments while preserving line count
-    content = content.replace(/\/\*[\s\S]*?\*\//g, (match) => '\n'.repeat(match.split('\n').length - 1));
-    // Strip single line comments
-    content = content.replace(/\/\/.*$/gm, '');
-    // Strip double-quoted, single-quoted, and template string literals
-    content = content.replace(/"[^"\\]*(?:\\.[^"\\]*)*"/g, '""');
-    content = content.replace(/'[^'\\]*(?:\\.[^'\\]*)*'/g, "''");
-    content = content.replace(/`[^`\\]*(?:\\.[^`\\]*)*`/g, '``');
+      // Strip block comments while preserving line count
+      content = content.replace(/\/\*[\s\S]*?\*\//g, (match) => '\n'.repeat(match.split('\n').length - 1));
+      // Strip single line comments
+      content = content.replace(/\/\/.*$/gm, '');
 
-    const lines = content.split('\n');
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
+      // Strip double-quoted, single-quoted, and multi-line template string literals securely,
+      // preserving newlines to maintain accurate line numbers on errors.
+      content = content.replace(
+        /"[^"\\]*(?:\\.[^"\\]*)*"/g,
+        (match) => '""' + '\n'.repeat(match.split('\n').length - 1),
+      );
+      content = content.replace(
+        /'[^'\\]*(?:\\.[^'\\]*)*'/g,
+        (match) => "''" + '\n'.repeat(match.split('\n').length - 1),
+      );
+      content = content.replace(/`[\s\S]*?(?<!\\)`/g, (match) => '``' + '\n'.repeat(match.split('\n').length - 1));
+
       const catchRegex = /\bcatch\b/g;
       let match;
 
-      while ((match = catchRegex.exec(line)) !== null) {
+      while ((match = catchRegex.exec(content)) !== null) {
+        const catchIndex = match.index;
+
         // Ignore property/method calls (e.g. promise.catch(...))
-        const beforeCatch = line.slice(0, match.index).trim();
-        if (beforeCatch.endsWith('.')) {
+        const beforeText = content.slice(0, catchIndex).trim();
+        if (beforeText.endsWith('.')) {
           continue;
         }
 
-        const remaining = line.slice(match.index + 5).trim();
-        // Match a valid parenthesis-enclosed variable parameter, e.g. (err), (error), (e)
-        const hasParam = /^\(\s*[a-zA-Z_$][a-zA-Z0-9_$]*\s*\)/.test(remaining);
-        if (!hasParam) {
-          console.log(
-            `❌ Violation: 'catch' statement without an explicit error binding found at ${relativePath}:${i + 1}`,
+        // Determine 1-based line number for error reporting
+        const linesBefore = content.slice(0, catchIndex).split('\n');
+        const lineNumber = linesBefore.length;
+        const currentLineText = linesBefore[lineNumber - 1] + content.slice(catchIndex).split('\n')[0];
+
+        // Find first non-whitespace following catch
+        const remaining = content.slice(catchIndex + 5);
+        const trimmedRemaining = remaining.trimStart();
+
+        if (!trimmedRemaining.startsWith('(')) {
+          core.error(
+            `❌ Violation: 'catch' statement without an explicit error binding found at ${relativePath}:${lineNumber}\n   Line: ${currentLineText.trim()}`,
           );
-          console.log(`   Line: ${line.trim()}`);
+          failed = true;
+          continue;
+        }
+
+        // It starts with '('. Let's find the closing parenthesis.
+        const closeParenIndex = trimmedRemaining.indexOf(')');
+        if (closeParenIndex === -1) {
+          core.error(
+            `❌ Violation: Unclosed parenthesis on 'catch' statement at ${relativePath}:${lineNumber}\n   Line: ${currentLineText.trim()}`,
+          );
+          failed = true;
+          continue;
+        }
+
+        const paramContent = trimmedRemaining.slice(1, closeParenIndex).trim();
+        // Validate that the param is a valid variable identifier
+        const isValidIdentifier = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(paramContent);
+        if (!isValidIdentifier) {
+          core.error(
+            `❌ Violation: 'catch' statement without an explicit error binding found at ${relativePath}:${lineNumber}\n   Line: ${currentLineText.trim()}`,
+          );
           failed = true;
         }
       }
     }
-  }
 
-  if (failed) {
-    console.log('\n🔴 Audit Failed: One or more catch statements violate the policy.');
-    process.exit(1);
-  } else {
-    console.log('\n🟢 Audit Passed: All catch statements comply with explicit error binding policy!');
-    process.exit(0);
+    if (failed) {
+      core.setFailed('🔴 Audit Failed: One or more catch statements violate the policy.');
+    } else {
+      core.info('🟢 Audit Passed: All catch statements comply with explicit error binding policy!');
+    }
+  } catch (err) {
+    core.setFailed(`🔴 Fatal Audit Error: ${err.message || err}`);
   }
-}
-
-checkCatchInFiles();
+};

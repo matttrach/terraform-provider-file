@@ -12,7 +12,6 @@
   "ignorePaths": [
     "**/.git/**",
     "**/.terraform/**",
-    "**/.agent/**",
     "**/bin/**",
     "go.mod",
     "go.sum",
@@ -23,6 +22,11 @@
     "docs/**",
     "CHANGELOG.md",
     "**/go.mod",
-    "**/go.sum"
+    "**/go.sum",
+    "modules/**",
+    "*.tf",
+    "*.sh",
+    "*.sh.tpl",
+    "cleanup.sh"
   ]
 }

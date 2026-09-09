@@ -2,7 +2,7 @@
 
 import fs from 'fs';
 import path from 'path';
-import { resolveTargetDir } from '../../agent-scripts/workspace.js';
+import { resolveTargetDir } from '../../agent-scripts/tools/file.js';
 import { preCommitPhaseInterruption, beforeAskUserCommit, afterAskUserCommit } from './04-commit/commitLogic.js';
 
 const hookName = path.basename(process.argv[1] || '04-commit-phase.js');
@@ -72,7 +72,30 @@ process.on('uncaughtException', (err) => {
   process.exit(1);
 });
 
-function main() {
+function restoreSshAgent() {
+  if (process.env.SSH_AUTH_SOCK) {
+    return;
+  }
+  if (process.platform === 'darwin') {
+    try {
+      const tmpDir = '/private/tmp';
+      const dirs = fs.readdirSync(tmpDir).filter((d) => d.startsWith('com.apple.launchd.'));
+      for (const d of dirs) {
+        const listenerPath = path.join(tmpDir, d, 'Listeners');
+        if (fs.existsSync(listenerPath)) {
+          process.env.SSH_AUTH_SOCK = listenerPath;
+          console.error(`🔒 Hook Info: Dynamically restored SSH_AUTH_SOCK to ${listenerPath}`);
+          return;
+        }
+      }
+    } catch (err) {
+      console.error(`🔒 Hook Warning: Failed to restore SSH agent dynamically: ${err.message}`);
+    }
+  }
+}
+
+async function main() {
+  restoreSshAgent();
   let inputData;
   try {
     inputData = JSON.parse(fs.readFileSync(0, 'utf-8'));
@@ -87,15 +110,15 @@ function main() {
     process.exit(0);
   }
 
-  const targetDir = resolveTargetDir();
+  const targetDir = await resolveTargetDir();
   const args = process.argv.slice(2);
 
   if (args.includes('--before-ask')) {
-    beforeAskUserCommit(inputData, targetDir);
+    await beforeAskUserCommit(inputData, targetDir);
   } else if (args.includes('--after-ask')) {
-    afterAskUserCommit(inputData, targetDir);
+    await afterAskUserCommit(inputData, targetDir);
   } else {
-    preCommitPhaseInterruption(inputData, targetDir);
+    await preCommitPhaseInterruption(inputData, targetDir);
     console.log(
       JSON.stringify({
         decision: 'allow',
@@ -106,4 +129,15 @@ function main() {
   }
 }
 
-main();
+main().catch((err) => {
+  const errMsg = `Fatal Commit Phase Hook Error: ${err.stack || err.message}`;
+  console.error('::error::' + errMsg);
+  process.stdout.write(
+    JSON.stringify({
+      decision: 'deny',
+      reason: errMsg,
+      systemMessage: `🔒 Hook Crash: ${errMsg}`,
+    }) + '\n',
+  );
+  process.exit(0);
+});

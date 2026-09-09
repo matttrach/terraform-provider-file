@@ -1,4 +1,4 @@
-
+#!/usr/bin/env bash
 
 # echo "Test data" > data.txt
 # FILEPATH="./data.txt"

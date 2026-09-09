@@ -1,8 +1,8 @@
 // merge-pr.js - Decoupled script to execute squash-merge on a Pull Request.
 // Conforms to github-script.instructions.md guidelines.
 
-import { execSync } from 'child_process';
-import fs from 'fs';
+import { execFileSync } from 'child_process';
+import { deleteFileSafe, readFileSafe, writeFileSafe } from '../../../agent-scripts/tools/file.js';
 
 const COMMENT_SIGNATURE = '<!-- auto-merge-verification-signature -->';
 
@@ -160,14 +160,33 @@ export default async ({ github, context, core, process }) => {
   // Use GitHub CLI with --auto to leverage GitHub's native auto-merge backend.
   // This bypasses the REST API GITHUB_TOKEN merge restriction for fork PRs!
   try {
-    const mergeCmd = `gh pr merge ${prNumber} --auto --squash --subject ${JSON.stringify(mergeParams.commit_title)} --body ${JSON.stringify(mergeParams.commit_message)}`;
-    execSync(mergeCmd, { env: { ...process.env, GH_TOKEN: process.env.MERGE_TOKEN } });
+    const args = [
+      'pr',
+      'merge',
+      prNumber,
+      '--auto',
+      '--squash',
+      '--subject',
+      mergeParams.commit_title,
+      '--body',
+      mergeParams.commit_message,
+    ];
+    execFileSync('gh', args, { env: { ...process.env, GH_TOKEN: process.env.MERGE_TOKEN } });
     core.info(`PR #${prNumber} auto-merge enabled/merged successfully via GitHub CLI!`);
   } catch (err) {
     core.warning(`Failed to enable auto-merge via gh CLI: ${err.message}. Retrying direct merge via gh CLI...`);
     try {
-      const directMergeCmd = `gh pr merge ${prNumber} --squash --subject ${JSON.stringify(mergeParams.commit_title)} --body ${JSON.stringify(mergeParams.commit_message)}`;
-      execSync(directMergeCmd, { env: { ...process.env, GH_TOKEN: process.env.MERGE_TOKEN } });
+      const args = [
+        'pr',
+        'merge',
+        prNumber,
+        '--squash',
+        '--subject',
+        mergeParams.commit_title,
+        '--body',
+        mergeParams.commit_message,
+      ];
+      execFileSync('gh', args, { env: { ...process.env, GH_TOKEN: process.env.MERGE_TOKEN } });
       core.info(`PR #${prNumber} merged directly via gh CLI successfully!`);
     } catch (directErr) {
       core.warning(`Failed direct merge via gh CLI: ${directErr.message}. Retrying REST API merge with merge token...`);
@@ -220,18 +239,22 @@ ${commitsList}
 
   try {
     const promptFile = '.copilot-prompt.txt';
-    fs.writeFileSync(promptFile, prompt);
+    await writeFileSafe(promptFile, prompt);
 
-    const cmd = `${process.env.GITHUB_WORKSPACE}/.github/workflows/scripts/nix-run.sh GITHUB_TOKEN='${process.env.GITHUB_TOKEN}' COPILOT_GITHUB_TOKEN='${process.env.GITHUB_TOKEN}' copilot -s --yolo -p '"$(cat ${promptFile})"'`;
-    const output = execSync(cmd, { env: { ...process.env, GITHUB_TOKEN: process.env.GITHUB_TOKEN } })
+    const nixRunScript = `${process.env.GITHUB_WORKSPACE}/.github/workflows/scripts/nix-run.sh`;
+    const promptContent = (await readFileSafe(promptFile)) || '';
+    const args = ['copilot', '-s', '--yolo', '-p', promptContent];
+    const output = execFileSync(nixRunScript, args, {
+      env: {
+        ...process.env,
+        GITHUB_TOKEN: process.env.GITHUB_TOKEN,
+        COPILOT_GITHUB_TOKEN: process.env.GITHUB_TOKEN,
+      },
+    })
       .toString()
       .trim();
 
-    try {
-      fs.unlinkSync(promptFile);
-    } catch (err) {
-      core.warning(`Temporary prompt file cleanup failed: ${err.message}`);
-    }
+    await deleteFileSafe(promptFile);
 
     if (!output) {
       throw new Error('Copilot returned an empty response');

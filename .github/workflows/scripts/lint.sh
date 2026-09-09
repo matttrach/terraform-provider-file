@@ -45,24 +45,38 @@ run_actionlint() {
 
 run_eslint() {
   echo "==> Running eslint check on scripts..."
-  if [ ! -d "node_modules" ] && [ -f "package.json" ]; then
+  if [[ ! -d "node_modules" && -f "package.json" ]]; then
     echo "==> Installing local eslint dependencies..."
     if ! npm ci --no-audit --no-fund --silent && ! npm install --no-audit --no-fund --silent; then
       echo "Error: Failed to install ESLint node dependencies (npm ci and npm install both failed)." >&2
       exit 1
     fi
   fi
-  eslint .github/workflows/scripts/ .gemini/hooks/ .gemini/skills/ agent-scripts/
+
+  local lint_dirs=(".github/workflows/scripts/" ".gemini/hooks/" "agent-scripts/")
+  local dir
+  for dir in "${lint_dirs[@]}"; do
+    if [[ -d "${dir}" ]]; then
+      npx eslint "${dir}"
+    fi
+  done
+
   echo "==> Auditing catch statements..."
-  node .github/workflows/scripts/check-catch.js
+  if [[ -f ".github/workflows/scripts/check-catch.js" ]]; then
+    node .github/workflows/scripts/check-catch.js
+  fi
 }
 
 run_shellcheck() {
   echo "==> Running shellcheck..."
   local files
-  files=$(grep -Rl -e '^#!' . \
-    | grep -v -E "^\./(\.git|\.terraform|\.gemini|bin|agent-scripts)/" \
-    | grep -v -E "\.(md|js|mjs)$" || true)
+  files=$( (
+    find . -type f -name "*.sh"
+    grep -Rl -E '^#![[:space:]]*.*(/bash|/sh|[[:space:]]bash|[[:space:]]sh)([[:space:]]|$)' .
+  ) 2>/dev/null \
+    | grep -v -E "^\./(\.git|\.terraform|bin)/" \
+    | grep -v -E "\.(md|js|mjs)$" \
+    | sort -u || true)
 
   if [[ -z "${files}" ]]; then
     echo "No shell scripts found to check."
@@ -128,19 +142,35 @@ run_golangci_lint() {
   fi
 
   echo "==> Running golangci-lint on Go code..."
-  echo "--> Linting root module..."
-  # shellcheck disable=SC2086
-  golangci-lint run --timeout=5m ${fix_flag}
+  if [[ ! -f "go.mod" ]]; then
+    echo "No go.mod found in root, skipping root golangci-lint."
+  else
+    echo "--> Linting root module..."
+    # shellcheck disable=SC2086
+    golangci-lint run --timeout=5m ${fix_flag}
+  fi
 
   if [[ -d "test" ]]; then
-    echo "--> Linting test module..."
-    # shellcheck disable=SC2086
-    (cd test && golangci-lint run --timeout=5m ${fix_flag})
+    if [[ -f "test/go.mod" ]]; then
+      echo "--> Linting test module..."
+      # shellcheck disable=SC2086
+      (cd test && golangci-lint run --timeout=5m ${fix_flag})
+    else
+      echo "No go.mod found in 'test' directory, skipping test module golangci-lint."
+    fi
   fi
 }
 
 run_tests_lint() {
   echo "==> Linting Go test files (legacy check)..."
+  if [[ ! -d "test" ]]; then
+    echo "No 'test' directory found, skipping legacy test lint."
+    return 0
+  fi
+  if [[ ! -f "test/go.mod" ]]; then
+    echo "No go.mod found in 'test' directory, skipping legacy test lint."
+    return 0
+  fi
   cd test
   if ! golangci-lint run; then
     echo "Error: golangci-lint failed on tests..." >&2
@@ -164,28 +194,42 @@ run_cspell() {
   cspell lint --no-progress "**/*"
 }
 
-main() {
-  local mode="all"
-  local fix_mode="false"
+parse_args() {
+  MODE="all"
+  FIX_MODE="false"
 
-  while [[ $# -gt 0 ]]; do
+  while [[ "${#}" -gt 0 ]]; do
     case "${1}" in
       -h | --help)
         show_help
         exit 0
         ;;
       -f | --fix)
-        fix_mode="true"
+        FIX_MODE="true"
         shift
         ;;
       *)
-        mode="${1}"
+        MODE="${1}"
         shift
         ;;
     esac
   done
+}
 
-  case "${mode}" in
+main() {
+  parse_args "${@}"
+
+  # Defensive check: if Go files exist but no go.mod is present anywhere, fail early to prevent silent skipped tests
+  local go_files
+  go_files=$(git ls-files "*.go" 2>/dev/null | head -n 1)
+  local go_mods
+  go_mods=$(find . -name "go.mod" -not -path "*/.terraform/*" | head -n 1)
+  if [[ -n "${go_files}" && -z "${go_mods}" ]]; then
+    echo "Error: Go source files were found, but no go.mod is present!" >&2
+    exit 1
+  fi
+
+  case "${MODE}" in
     terraform)
       run_terraform
       ;;
@@ -199,16 +243,16 @@ main() {
       run_shellcheck
       ;;
     shfmt)
-      run_shfmt "${fix_mode}"
+      run_shfmt "${FIX_MODE}"
       ;;
     prettier)
-      run_prettier "${fix_mode}"
+      run_prettier "${FIX_MODE}"
       ;;
     markdownlint)
       run_markdownlint
       ;;
     golangci-lint)
-      run_golangci_lint "${fix_mode}"
+      run_golangci_lint "${FIX_MODE}"
       ;;
     tests)
       run_tests_lint
@@ -224,19 +268,21 @@ main() {
       run_actionlint
       run_eslint
       run_shellcheck
-      run_shfmt "${fix_mode}"
-      run_prettier "${fix_mode}"
+      run_shfmt "${FIX_MODE}"
+      run_prettier "${FIX_MODE}"
       run_markdownlint
-      run_golangci_lint "${fix_mode}"
+      run_golangci_lint "${FIX_MODE}"
       run_gitleaks
       run_cspell
       ;;
     *)
-      echo "Error: Unknown lint mode: ${mode}" >&2
-      echo "Usage: $0 [terraform|actionlint|eslint|shellcheck|shfmt|prettier|markdownlint|golangci-lint|tests|gitleaks|cspell|all] [-f|--fix]" >&2
+      echo "Error: Unknown lint mode: ${MODE}" >&2
+      echo "Usage: ${0} [terraform|actionlint|eslint|shellcheck|shfmt|prettier|markdownlint|golangci-lint|tests|gitleaks|cspell|all] [-f|--fix]" >&2
       exit 1
       ;;
   esac
 }
 
-main "$@"
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+  main "$@"
+fi

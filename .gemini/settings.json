@@ -22,18 +22,6 @@
     ],
     "BeforeTool": [
       {
-        "matcher": "invoke_agent",
-        "hooks": [
-          {
-            "name": "review-phase-before-subagent",
-            "type": "command",
-            "command": "node .gemini/hooks/03-review-phase.js",
-            "timeout": 60000,
-            "description": "Verifies Gate 1, runs automated tests, and injects active plan checklist before project_manager execution"
-          }
-        ]
-      },
-      {
         "matcher": "ask_user",
         "hooks": [
           {
@@ -158,23 +146,82 @@
             "description": "Generates cryptographic commit signatures upon user approval"
           }
         ]
-      },
-      {
-        "matcher": "invoke_agent",
-        "hooks": [
-          {
-            "name": "review-phase-after-subagent",
-            "type": "command",
-            "command": "node .gemini/hooks/03-review-phase.js --after-invoke",
-            "timeout": 5000,
-            "description": "Saves review reports and secures review signatures upon verified success"
-          }
-        ]
       }
     ]
   },
   "hooksConfig": {
-    "disabled": []
+    "disabled": [],
+    "enabled": true
+  },
+  "modelConfigs": {
+    "modelChains": {
+      "pro-review-chain": [
+        {
+          "model": "gemini-3.1-pro-preview",
+          "maxAttempts": 3
+        },
+        {
+          "model": "gemini-2.5-pro",
+          "isLastResort": true,
+          "maxAttempts": 3
+        },
+        {
+          "model": "gemini-3.5-flash",
+          "isLastResort": true,
+          "maxAttempts": 3
+        },
+        {
+          "model": "gemini-3.1-flash-lite",
+          "isLastResort": true,
+          "maxAttempts": 5
+        }
+      ],
+      "flash-review-chain": [
+        {
+          "model": "gemini-3.5-flash",
+          "maxAttempts": 3
+        },
+        {
+          "model": "gemini-3.1-flash-lite",
+          "isLastResort": true,
+          "maxAttempts": 5
+        }
+      ]
+    },
+    "overrides": [
+      {
+        "match": {
+          "overrideScope": "lead_architect"
+        },
+        "modelConfig": {
+          "model": "pro-review-chain"
+        }
+      },
+      {
+        "match": {
+          "overrideScope": "heads_down_coder"
+        },
+        "modelConfig": {
+          "model": "flash-review-chain"
+        }
+      },
+      {
+        "match": {
+          "overrideScope": "data_scientist"
+        },
+        "modelConfig": {
+          "model": "flash-review-chain"
+        }
+      },
+      {
+        "match": {
+          "overrideScope": "project_manager"
+        },
+        "modelConfig": {
+          "model": "pro-review-chain"
+        }
+      }
+    ]
   },
   "skills": {
     "disabled": ["code-review-commons"]

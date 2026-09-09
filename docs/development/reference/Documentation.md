@@ -4,6 +4,8 @@ applyTo: '**/*.md'
 
 # Documentation & Architectural Blueprint Standards (Reference Dictionary)
 
+> **Blueprint Compliance:** This integration MUST adhere strictly to the **Strict 4-Phase Lifecycle** (Plan, Implement, Review, Commit) and the **Strict 3-Gate Architecture** (Planning Gate (Gate 1), Programmatic Review/Testing Gate (Gate 2), and Commit Gate (Gate 3)). Of these 3 gates, the Planning Gate and Commit Gate are user-facing. No phase or gate may be bypassed.
+
 This document is a dry, structured reference index of Markdown formatting, spellchecking, Diátaxis layouts, and architectural alignment rules.
 
 ---
