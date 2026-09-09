@@ -28,7 +28,7 @@ All commits that undergo gating checks must be cryptographically signed by your 
    ```
 
 3. **Register your GPG key in your local SSH agent if utilizing SSH-based signing keys:**
-   Refer to our **[Documentation Standards](reference/Documentation.md)** to verify private/public key completeness.
+   Refer to our **[Documentation Standards](../reference/Documentation.md)** to verify private/public key completeness.
 
 ## Phase 2: Change Proposal via Conventional Commits
 

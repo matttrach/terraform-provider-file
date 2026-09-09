@@ -39,12 +39,12 @@ export function verifyNixEnvironment() {
  * Loads the standing Agentic Framework architectural specification document.
  */
 export async function loadFrameworkContext() {
-  const frameworkDocPath = 'docs/development/AgenticFramework.md';
+  const frameworkDocPath = 'docs/development/explanation/AgenticFramework.md';
   let context = '';
 
   const frameworkDoc = await readFileSafe(frameworkDocPath);
   if (frameworkDoc) {
-    context += '# Context from docs/development/AgenticFramework.md\n\n';
+    context += '# Context from docs/development/explanation/AgenticFramework.md\n\n';
     context += frameworkDoc;
     context += '\n\n';
     console.error(`Loaded ${frameworkDocPath}`);

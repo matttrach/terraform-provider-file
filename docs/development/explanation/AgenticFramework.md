@@ -20,26 +20,26 @@ Our framework is comprised of 12 closely integrated components that work togethe
 
 These specifications establish the step-by-step procedures and rules for executing modifications, resolving reviews, or debugging pipeline errors:
 
-- **[Development Process](how-to/DevelopmentProcess.md):** Defines our Gated 4-Phase Lifecycle off of the `main` branch, structured around three authoritative approval gates.
-- **[PR Review Resolution](how-to/PRReviewResolution.md):** Governs our asynchronous PR comment resolution workflow, separating comment timeline parsing, evaluation, and manual fixes.
-- **[Workflow Troubleshooting](how-to/WorkflowTroubleshooting.md):** Establishes standard log-retrieval techniques, parsing, and diagnostic approaches to resolve CI/CD and release workflow failures.
+- **[Development Process](../how-to/DevelopmentProcess.md):** Defines our Gated 4-Phase Lifecycle off of the `main` branch, structured around three authoritative approval gates.
+- **[PR Review Resolution](../how-to/PRReviewResolution.md):** Governs our asynchronous PR comment resolution workflow, separating comment timeline parsing, evaluation, and manual fixes.
+- **[Workflow Troubleshooting](../how-to/WorkflowTroubleshooting.md):** Establishes standard log-retrieval techniques, parsing, and diagnostic approaches to resolve CI/CD and release workflow failures.
 
 ### 2. Gating, Safety & Security Infrastructure
 
 These components form our zero-bypass security sandbox, preventing unauthorized code modification, secret leaks, or command injection:
 
-- **[Secure Workflows & Hooks](reference/SecureWorkflowsAndHooks.md):** Intercepts unvetted direct `git commit`/`push` commands and enforces the presence of signed planning blueprints prior to any file writes.
-- **[Cryptographic Gating](reference/GatingAndApprovals.md):** Coordinates Apple Secure Enclave / Touch ID developer biometrics and chains planning, testing, and review gate signatures.
-- **[Workflow Optimization & Subagent Design](reference/WorkflowDesign.md):** Configures our custom specialized subagents with hardened, read-only permissions and prunes mechanical style checks from core LLM prompts.
-- **[Review Subagents](reference/ProjectManager.md):** Detailed specifications and sandboxing parameters for our pre-commit Review Agents (Heads-Down Coder and Data Scientist).
-- **[Claude Code Integration](how-to/ClaudeCodeIntegration.md):** Documents how this same gated process is implemented for Claude Code via its own native primitives, in parallel with the Gemini CLI implementation.
-- **[Ask User Component](reference/AskUserComponent.md):** Governs the structured TOML format requirements, schema, and templates for all collaborative and gating questions directed to the human developer, validated natively within each phase's submodule.
+- **[Secure Workflows & Hooks](../reference/SecureWorkflowsAndHooks.md):** Intercepts unvetted direct `git commit`/`push` commands and enforces the presence of signed planning blueprints prior to any file writes.
+- **[Cryptographic Gating](../reference/GatingAndApprovals.md):** Coordinates Apple Secure Enclave / Touch ID developer biometrics and chains planning, testing, and review gate signatures.
+- **[Workflow Optimization & Subagent Design](../reference/WorkflowDesign.md):** Configures our custom specialized subagents with hardened, read-only permissions and prunes mechanical style checks from core LLM prompts.
+- **[Review Subagents](../reference/ProjectManager.md):** Detailed specifications and sandboxing parameters for our pre-commit Review Agents (Heads-Down Coder and Data Scientist).
+- **[Claude Code Integration](../how-to/ClaudeCodeIntegration.md):** Documents how this same gated process is implemented for Claude Code via its own native primitives, in parallel with the Gemini CLI implementation.
+- **[Ask User Component](../reference/AskUserComponent.md):** Governs the structured TOML format requirements, schema, and templates for all collaborative and gating questions directed to the human developer, validated natively within each phase's submodule.
 
 ### 3. Shared Skills & Persona Formatting Guidelines
 
 These utilities and formatting styles maintain clean, high-signal, and standardized communication during collaborative engineering:
 
-- **[Boilerplate Sync Skill](reference/BoilerplateSync.md):** Implements our manifest-driven, shallow-cloned boilerplate file syncing and exit-trap cleanup procedures.
+- **[Boilerplate Sync Skill](../reference/BoilerplateSync.md):** Implements our manifest-driven, shallow-cloned boilerplate file syncing and exit-trap cleanup procedures.
 - **Strict Output Style:** Rules and structural guidelines for the high-signal, zero-chitchat agent response persona.
 - **Conversational Output Style:** Rules and structural guidelines for the collaborative peer partner response persona.
 
