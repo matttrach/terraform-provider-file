@@ -14,25 +14,28 @@ Options:
 EOF
 }
 
+# parse_args handles the command-line argument contract.
+# Note: This is intentionally simplified to support a single-parameter contract
+# (specifically checking for -h/--help) and does not support multi-argument shifting.
 parse_args() {
-  while [[ $# -gt 0 ]]; do
-    case "$1" in
-      -h|--help)
-        show_help
-        exit 0
-        ;;
-      *)
-        echo "Error: Unknown argument: $1" >&2
-        show_help
-        exit 1
-        ;;
-    esac
-    shift
-  done
+  case "${1:-}" in
+    -h|--help)
+      show_help
+      exit 0
+      ;;
+    "")
+      ;;
+    *)
+      echo "Error: Unknown argument: $1" >&2
+      show_help
+      exit 1
+      ;;
+  esac
 }
 
 run_exercise() {
-  local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+  local script_dir
+  script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
   local project_dir="${script_dir}/.."
 
   cd "${project_dir}"

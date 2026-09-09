@@ -70,3 +70,18 @@ Acceptance tests spin up real resources using Terraform to verify end-to-end com
 # Execute all acceptance tests (seeds the plugin cache and executes test/):
 make testacc
 ```
+
+---
+
+## Step 6: Generic Unified Testing & Linting Entrypoints
+
+For unified and cross-repository automation (supporting Go, JavaScript, and Terraform-only modules), we provide generic bash entrypoints:
+
+- `.github/workflows/scripts/test.sh`
+- `.github/workflows/scripts/lint.sh`
+
+These scripts are designed to be fully generic. They automatically detect the repository configuration and safely bypass language-specific verification steps:
+
+- **`test.sh`**: Gracefully skips Go compilation, unit tests, and acceptance tests if no root `go.mod`, `test/` folder, or `Makefile` are detected.
+- **`lint.sh`**: Skips Go-specific static analysis (`golangci-lint`, `go fmt`) when the root `go.mod` file is absent.
+- **CI Workflows**: The workflows in `.github/workflows/pull_request.yaml` utilize these checks to dynamically bypass Go-specific CI verification steps on non-Go repositories (such as Terraform modules).

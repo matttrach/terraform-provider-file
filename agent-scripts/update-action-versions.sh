@@ -74,6 +74,7 @@ list_current_actions() {
   echo "Scanning GitHub Actions workflow files to list action usages and versions..." >&2
 
   local actions_data
+  # shellcheck disable=SC2016
   actions_data=$(find "${search_dir}" -type f \( -name "*.yml" -o -name "*.yaml" \) -print0 2>/dev/null \
     | xargs -0 awk '
       /[[:space:]]+uses:[[:space:]]+/ {

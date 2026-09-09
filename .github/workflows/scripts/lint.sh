@@ -70,9 +70,13 @@ run_eslint() {
 run_shellcheck() {
   echo "==> Running shellcheck..."
   local files
-  files=$(grep -Rl -e '^#!' . \
-    | grep -v -E "^\./(\.git|\.terraform|\.gemini|bin|agent-scripts)/" \
-    | grep -v -E "\.(md|js|mjs)$" || true)
+  files=$( (
+    find . -type f -name "*.sh"
+    grep -Rl -E '^#![[:space:]]*.*(/bash|/sh|[[:space:]]bash|[[:space:]]sh)([[:space:]]|$)' .
+  ) 2>/dev/null \
+    | grep -v -E "^\./(\.git|\.terraform|bin)/" \
+    | grep -v -E "\.(md|js|mjs)$" \
+    | sort -u || true)
 
   if [[ -z "${files}" ]]; then
     echo "No shell scripts found to check."
@@ -138,19 +142,35 @@ run_golangci_lint() {
   fi
 
   echo "==> Running golangci-lint on Go code..."
-  echo "--> Linting root module..."
-  # shellcheck disable=SC2086
-  golangci-lint run --timeout=5m ${fix_flag}
+  if [[ ! -f "go.mod" ]]; then
+    echo "No go.mod found in root, skipping root golangci-lint."
+  else
+    echo "--> Linting root module..."
+    # shellcheck disable=SC2086
+    golangci-lint run --timeout=5m ${fix_flag}
+  fi
 
   if [[ -d "test" ]]; then
-    echo "--> Linting test module..."
-    # shellcheck disable=SC2086
-    (cd test && golangci-lint run --timeout=5m ${fix_flag})
+    if [[ -f "test/go.mod" ]]; then
+      echo "--> Linting test module..."
+      # shellcheck disable=SC2086
+      (cd test && golangci-lint run --timeout=5m ${fix_flag})
+    else
+      echo "No go.mod found in 'test' directory, skipping test module golangci-lint."
+    fi
   fi
 }
 
 run_tests_lint() {
   echo "==> Linting Go test files (legacy check)..."
+  if [[ ! -d "test" ]]; then
+    echo "No 'test' directory found, skipping legacy test lint."
+    return 0
+  fi
+  if [[ ! -f "test/go.mod" ]]; then
+    echo "No go.mod found in 'test' directory, skipping legacy test lint."
+    return 0
+  fi
   cd test
   if ! golangci-lint run; then
     echo "Error: golangci-lint failed on tests..." >&2
@@ -198,6 +218,14 @@ parse_args() {
 
 main() {
   parse_args "${@}"
+
+  # Defensive check: if Go files exist but go.mod is missing, fail early to prevent silent skipped tests
+  local go_files
+  go_files=$(git ls-files "*.go" 2>/dev/null | head -n 1)
+  if [[ -n "${go_files}" && ! -f "go.mod" ]]; then
+    echo "Error: Go source files were found, but go.mod is missing!" >&2
+    exit 1
+  fi
 
   case "${MODE}" in
     terraform)

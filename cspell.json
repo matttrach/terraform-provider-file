@@ -12,7 +12,6 @@
   "ignorePaths": [
     "**/.git/**",
     "**/.terraform/**",
-    "**/.agent/**",
     "**/bin/**",
     "go.mod",
     "go.sum",

@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 
 # IDENTIFIER="$(echo -n "these contents are the default for testing" | base64 -w 0 | sha256sum | awk '{print $1}')"
 terraform import file_snapshot.example "IDENTIFIER"

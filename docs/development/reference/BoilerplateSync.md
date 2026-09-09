@@ -59,3 +59,17 @@ Note: The sequence diagram is simplified and omits the --no-checkout flag for re
 2. **Standard Commits on Push**: When pushing updates back to the centralized template repository, changes are always committed using standard, non-bumping conventional commits (e.g. `sync: update boilerplate from <repo>`) to maintain pristine release-please semantics in the master repository.
 3. **No-Checkout Optimization**: `git clone` always uses `--no-checkout` to avoid pulling unnecessary files, checking out only the exact files and directories mapped in `.boilerplate-sync.json` for read operations.
 4. **Dynamic Repository URL Parsing**: To prevent hardcoding a specific repository URL inside version-controlled configuration, the utility strictly requires the target central repository URL to be explicitly provided at runtime using the `-r/--repo` option or via the `CENTRAL_FILE_REPO` environment variable. It throws a fatal error if neither is supplied.
+
+---
+
+## Mitigating Sync-Write Overwrite Collisions
+
+Because the boilerplate synchronization pulls configuration files (such as `package.json`, `.prettierrc`, and linter settings) directly from a centralized repository and overwrites the local targets in `--pull` mode, there is a risk of losing repository-specific customizations.
+
+To mitigate **Sync-Write Overwrite Collisions**, follow these strict developmental standards:
+
+1. **Always Diff Before Pulling**: Run `sync-boilerplate.js --diff` first. Review the precise comparative output to identify if any custom local modifications will be overwritten.
+2. **Commit or Stash Workspace Changes**: Never pull boilerplate changes into a dirty workspace. Ensure all local-only modifications are fully committed or stashed before running a sync pull.
+3. **Isolate Customizations**:
+   - For configuration files like `package.json`, maintain standard ecosystem packages in the synced boilerplate while placing repository-specific dependencies and packages under isolated, non-synced secondary blocks, or utilize non-destructive merging scripts if custom packages are required.
+   - For linters or formatters, define repository-specific exclusions in local-only ignore lists (like `.gitignore` or local configuration overrides) rather than editing the globally synced template files directly.

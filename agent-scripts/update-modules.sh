@@ -78,6 +78,7 @@ list_current_modules() {
 
   local modules_data
   # Robust HCL-like block parsing using stateful AWK
+  # shellcheck disable=SC2016
   modules_data=$(find "${search_dir}" -type d \( -name ".git" -o -name ".terraform" -o -name "tf_plugin_cache" \) -prune -o -type f -name "*.tf" -print0 2>/dev/null \
     | xargs -0 awk '
       BEGIN {

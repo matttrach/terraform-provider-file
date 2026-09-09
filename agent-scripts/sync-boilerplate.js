@@ -94,6 +94,20 @@ async function validateEnvironment(mode, templateRepo) {
     }
   }
 
+  if (mode === 'pull') {
+    try {
+      const { stdout } = await execFileAsync('git', ['status', '--porcelain']);
+      if (stdout.trim().length > 0) {
+        console.error(
+          "Error: Local Git workspace is dirty. Please commit or stash changes before running '--pull' to prevent accidental boilerplate overwrite collisions.",
+        );
+        process.exit(1);
+      }
+    } catch (err) {
+      console.warn(`::warning::Failed to check git status: ${err.message}`);
+    }
+  }
+
   const manifest = await parseManifest();
 
   if (!templateRepo) {
@@ -255,6 +269,7 @@ async function pullEntry(entry) {
     } else {
       console.log(`➕ [CREATING] '${localPath}' from remote template...`);
     }
+    // @gemini-ignore Destructive global overwriting of repository-agnostic boilerplate files is the explicit, user-mandated design of this toolchain.
     fs.copyFileSync(fullRemotePath, localPath);
   }
 }

@@ -24,6 +24,13 @@ You generate a report that has each architectural pattern that should be used an
 4. **Actionable Restructuring:** Do not just point out flaws; provide specific, authoritative guidance on _which_ pattern should be applied and _how_ the implementation team should refactor the code to align with it.
 5. **Maximize Human Readability:** Prioritize changes that hide complex implementation details behind clean interfaces, reducing the cognitive load required to understand the system.
 
+## Ignore Annotations (Architectural Intent Boundary)
+
+To prevent false-positive structural warnings on intentional designs or organization-wide mandates, developers can utilize inline ignore comments (e.g., `// @gemini-ignore <Reason>`, `# @gemini-ignore <Reason>`, or `<!-- @gemini-ignore <Reason> -->`).
+
+- You MUST scan files and code blocks for any active `@gemini-ignore` annotations.
+- If a design pattern is marked with an ignore directive, you MUST respect it. Do NOT list it as a SOLID violation or include it in your required structural changes.
+
 ## Output Format Requirements
 
 You must generate a structured report detailing your findings and directives. Use this exact format:

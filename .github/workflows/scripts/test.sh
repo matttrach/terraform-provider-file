@@ -3,13 +3,29 @@ set -euo pipefail
 
 run_compile_check() {
   echo "==> Running compile check on tests..."
+  if [[ ! -d "test" ]]; then
+    echo "No 'test' directory found, skipping compile check."
+    return 0
+  fi
   cd test
-  go test -c
+  if [[ -f "go.mod" ]]; then
+    go test -c
+  else
+    echo "No go.mod found in 'test' directory, skipping compile check."
+  fi
   cd ..
 }
 
 run_unit_tests() {
   echo "==> Running unit tests..."
+  if [[ ! -f "Makefile" ]]; then
+    echo "No Makefile found, skipping unit tests."
+    return 0
+  fi
+  if [[ ! -f "go.mod" ]]; then
+    echo "No go.mod found in root directory, skipping unit tests."
+    return 0
+  fi
   # https://github.com/gotestyourself/gotestsum/releases
   go install gotest.tools/gotestsum@c4a0df2e75a225d979a444342dd3db752b53619f # v1.13.0
   make test
@@ -17,11 +33,19 @@ run_unit_tests() {
 
 run_acc_tests() {
   echo "==> Running acceptance tests..."
+  if [[ ! -f "Makefile" ]]; then
+    echo "No Makefile found, skipping acceptance tests."
+    return 0
+  fi
   make testacc
 }
 
 run_relay_acc_tests() {
   echo "==> Running AWS Test Relay acceptance tests..."
+  if [[ ! -f "Makefile" ]]; then
+    echo "No Makefile found, skipping AWS Test Relay acceptance tests."
+    return 0
+  fi
   make testaccrelay
 }
 
@@ -77,6 +101,14 @@ main() {
   if [[ "${mode}" == "-h" || "${mode}" == "--help" ]]; then
     show_help
     exit 0
+  fi
+
+  # Defensive check: if Go files exist but go.mod is missing, fail early to prevent silent skipped tests
+  local go_files
+  go_files=$(git ls-files "*.go" 2>/dev/null | head -n 1)
+  if [[ -n "${go_files}" && ! -f "go.mod" ]]; then
+    echo "Error: Go source files were found, but go.mod is missing!" >&2
+    exit 1
   fi
 
   case "${mode}" in
