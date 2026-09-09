@@ -30,14 +30,13 @@ export async function beforeAskUserPlan(inputData, targetDir) {
   if (intent === 'plan approval' && !(await inPlanPhase(targetDir))) {
     const phaseRes = await getPhase(targetDir);
     const currentPhase = phaseRes && phaseRes.success ? phaseRes.data : 'unknown';
-    const statePath = path.join(targetDir, 'phase-state.json');
     deny(
       'Gate 1 (Planning Gate) Phase Validation',
       `You are attempting to request plan approval, but the workspace is currently in the "${currentPhase}" phase.`,
       "To request plan approval, the workspace must be in the 'plan' phase.\n" +
-        `If you need to re-verify or change your plan, you must reset the phase state file at ${statePath} to:\n` +
-        '{\n  "currentPhase": "plan"\n}\n' +
-        'Once you reset the phase-state file, re-run the `ask_user` tool with intent = "plan approval".',
+        `If you need to re-verify or change your plan, run the state CLI to fix:\n` +
+        '`node agent-scripts/tools/state.js set-phase plan`\n' +
+        'Once you reset the phase-state, re-run the `ask_user` tool with intent = "plan approval".',
     );
   }
 
@@ -68,7 +67,7 @@ export async function beforeAskUserPlan(inputData, targetDir) {
   }
 
   // Verify the plan is valid before allowing ask_user to prompt the user
-  const activePlan = findLatestActivePlan(targetDir);
+  const activePlan = await findLatestActivePlan(targetDir);
   if (!activePlan) {
     deny(
       'Gate 1 (Planning Gate) Pipeline Verification',
@@ -77,7 +76,7 @@ export async function beforeAskUserPlan(inputData, targetDir) {
     );
   }
 
-  const validation = validatePlanContent(activePlan);
+  const validation = await validatePlanContent(activePlan);
   if (!validation.valid) {
     const errorsList = validation.errors.map((err) => `  - ${err}`).join('\n');
     deny(
@@ -107,7 +106,7 @@ export async function afterAskUserPlan(inputData, targetDir) {
     deny(
       'Gate 1 (Planning Gate) Phase Validation',
       `You are attempting to approve the plan, but the workspace is currently in the "${currentPhase}" phase.`,
-      "To approve the plan, the workspace must be in the 'plan' phase. Reset phase-state.json to 'plan' first.",
+      "To approve the plan, the workspace must be in the 'plan' phase. Run the state CLI to fix: `node agent-scripts/tools/state.js set-phase plan`",
     );
   }
 
@@ -144,7 +143,13 @@ export async function afterAskUserPlan(inputData, targetDir) {
   const homeDir = os.homedir();
   const sshPubKeyFile = path.resolve(homeDir, '.gemini/ssh-key.pub');
   const planContent = tomlData.plan;
-  const result = handlePlanApproval(targetDir, sshPubKeyFile, planContent);
+  const result = await handlePlanApproval(targetDir, sshPubKeyFile, planContent);
 
-  allow(hookName, tool_name, tool_input, '', '\n\n' + result.systemMessage + ' You may now call exit_plan_mode.');
+  allow(
+    hookName,
+    tool_name,
+    tool_input,
+    '',
+    '\n\n' + (result ? result.systemMessage : '') + ' You may now call exit_plan_mode.',
+  );
 }
