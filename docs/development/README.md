@@ -46,4 +46,5 @@ Dry, clinical, and exhaustive technical indices of coding standards, linter rule
   - **[Shell Scripts](./reference/ShellScripts.md):** Bash fail-fast parameters, shebangs, double brackets, and Makefile actions.
   - **[Workflows](./reference/Workflows.md):** GHA permissions, SHA action pinning, and allowlist namespaces.
   - **[Documentation](./reference/Documentation.md):** Markdown layout structures, Diátaxis specifications, and `cspell` spellcheck exclusions.
+- **[Agent Scripts Architecture Reference](./reference/AgentScriptsArchitecture.md):** Architectural Levels, Directory Structure, and Design Principles of automated helper scripts.
 - **[Changelog](./reference/CHANGELOG.md):** Historical log of all changes and structural refactors applied to this documentation library.
