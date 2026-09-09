@@ -21,14 +21,16 @@ export async function executeGit(args, cwd = process.cwd()) {
   try {
     const { stdout } = await execFileAsync('git', args, {
       cwd: cwd || process.cwd(),
-      stdio: ['ignore', 'pipe', 'ignore'],
+      stdio: ['ignore', 'pipe', 'pipe'],
       encoding: 'utf-8',
     });
     return sanitizeOutput(stdout.trim());
   } catch (err) {
     const safeMsg = sanitizeOutput(err.message || '');
+    const safeStderr = err.stderr ? sanitizeOutput(err.stderr.trim()) : '';
     const safeArgs = args.map((arg) => sanitizeOutput(arg));
-    throw new Error(`Git command failed: git ${safeArgs.join(' ')}. Error: ${safeMsg}`, { cause: err });
+    const fullError = safeStderr ? `${safeMsg}\nStderr: ${safeStderr}` : safeMsg;
+    throw new Error(`Git command failed: git ${safeArgs.join(' ')}. Error: ${fullError}`, { cause: err });
   }
 }
 
@@ -111,7 +113,7 @@ export async function gitStashList(cwd) {
   return await executeGit(['stash', 'list'], cwd);
 }
 export async function gitStashPush(message, cwd) {
-  return await executeGit(['stash', 'push', '-k', '-u', '-m', message], cwd);
+  return await executeGit(['stash', 'push', '-u', '-m', message], cwd);
 }
 export async function gitStashPop(stashRef, cwd) {
   return await executeGit(['stash', 'pop', '--index', stashRef], cwd);
@@ -219,8 +221,8 @@ export async function syncDefaultBranch(branch, cwd = process.cwd()) {
 
     try {
       await syncUpstreamDefaultBranch(cwd);
-    } catch {
-      console.error('Error: Upstream synchronization failed.');
+    } catch (err) {
+      console.error(`Error: Upstream synchronization failed: ${err.message || err}`);
       if (stashCreated) {
         await popStashByMessage(stashMsg, cwd);
       }
