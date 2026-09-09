@@ -3,9 +3,7 @@
     "compactToolOutputs": false
   },
   "tools": {
-    "allowed": [
-      "run_shell_command"
-    ]
+    "allowed": ["run_shell_command"]
   },
   "hooks": {
     "SessionStart": [
@@ -226,8 +224,6 @@
     ]
   },
   "skills": {
-    "disabled": [
-      "code-review-commons"
-    ]
+    "disabled": ["code-review-commons"]
   }
 }
