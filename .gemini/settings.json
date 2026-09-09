@@ -152,9 +152,7 @@
     ]
   },
   "hooksConfig": {
-    "disabled": [
-      "block-restricted-commands"
-    ],
+    "disabled": [],
     "enabled": true
   },
   "modelConfigs": {
