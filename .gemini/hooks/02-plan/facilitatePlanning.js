@@ -1,6 +1,7 @@
 import { verifyPlanGate, healApprovalState } from '../../../agent-scripts/tools/approval.js';
-import { setLock, setPhase } from '../../../agent-scripts/tools/state.js';
+import { setLock, setPhase, getLock } from '../../../agent-scripts/tools/state.js';
 import { allow, deny } from '../shared.js';
+import { gitBranchShowCurrent, executeGit } from '../../../agent-scripts/tools/git.js';
 
 export async function clearPrePlanFlag(targetDir) {
   const hookName = 'clearPrePlanFlag';
@@ -39,6 +40,34 @@ export async function afterExitPlanMode(inputData, targetDir) {
   // AfterTool hook for exit_plan_mode
   if (inputData.tool_name !== 'exit_plan_mode') {
     allow('afterExitPlanMode', inputData.tool_name);
+  }
+
+  try {
+    const isLocked = await getLock(targetDir);
+    if (isLocked) {
+      console.error('::warning::Git operations are currently locked by another process.');
+    } else {
+      await setLock(targetDir, true);
+      (async () => {
+        try {
+          const branchName = await gitBranchShowCurrent(targetDir);
+          if (branchName === 'main') {
+            console.error('::notice::Currently on main branch. Syncing main and creating a new branch...');
+            await executeGit(['pull', 'origin', 'main'], targetDir);
+            const newBranch = `wip-feature-${Date.now()}`;
+            const safeBranch = newBranch.replace(/[^a-zA-Z0-9-]/g, '');
+            await executeGit(['checkout', '-b', safeBranch], targetDir);
+            console.error(`::notice::🟢 Successfully branched from main to new branch: ${safeBranch}`);
+          }
+        } catch (err) {
+          console.error(`::warning::Failed to automatically branch from main: ${err.message}`);
+        } finally {
+          await setLock(targetDir, false);
+        }
+      })();
+    }
+  } catch (err) {
+    console.error(`::warning::Failed to initiate background branching: ${err.message}`);
   }
 
   await setPhase(targetDir, 'implement');

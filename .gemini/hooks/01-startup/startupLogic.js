@@ -1,18 +1,18 @@
 import fs from 'fs';
 import path from 'path';
-import { readFileSafe } from '../../../agent-scripts/tools/file.js';
 import { gitRevParseShowToplevel } from '../../../agent-scripts/tools/git.js';
 import { initializeState } from '../../../agent-scripts/tools/state.js';
 import { deny } from '../shared.js';
 
 /**
- * Consumes and discards hook input from stdin to prevent broken pipes.
+ * Consumes and discards hook input from stdin non-blockingly to prevent broken pipes.
  */
 export function discardStdin() {
   try {
-    fs.readFileSync(0, 'utf-8');
+    // Standard non-blocking Node.js stream consumption
+    process.stdin.resume();
   } catch (err) {
-    console.error(`🔒 Hook Warning: Failed to read from stdin: ${err.message || err}`);
+    console.error(`🔒 Hook Warning: Failed to resume stdin stream: ${err.message || err}`);
   }
 }
 
@@ -36,23 +36,16 @@ export function verifyNixEnvironment() {
 }
 
 /**
- * Loads the standing Agentic Framework architectural specification document.
+ * Loads a highly-dense, token-optimized reference summary of the Agentic Framework.
+ * Bypasses full file injection to prevent context bloat and keep token count low.
  */
 export async function loadFrameworkContext() {
-  const frameworkDocPath = 'docs/development/explanation/AgenticFramework.md';
-  let context = '';
-
-  const frameworkDoc = await readFileSafe(frameworkDocPath);
-  if (frameworkDoc) {
-    context += '# Context from docs/development/explanation/AgenticFramework.md\n\n';
-    context += frameworkDoc;
-    context += '\n\n';
-    console.error(`Loaded ${frameworkDocPath}`);
-  } else {
-    console.error(`Warning: ${frameworkDocPath} not found`);
-  }
-
-  return context;
+  console.error('Loaded token-optimized Agentic Framework context pointer.');
+  return `# Gated Agentic Framework Reference
+The repository implements a secure Gated 4-Phase Lifecycle (Plan, Implement, Review, Commit) with 3 authoritative cryptographic approval gates. Direct git commits and pushes are blocked.
+Subagents (Local Reviewer, Global Reviewer, Concurrency Auditor, Security Auditor, Aggregator, Action Items Analyzer, and Surgical Coder) operate strictly headlessly in isolated sandboxes to audit, verify, and remediate modifications.
+Refer strictly to "docs/development/AgenticFramework.md" for full architectural specifications.
+`;
 }
 
 /**
@@ -87,8 +80,11 @@ export async function protectExcludeFiles() {
     const excludeFiles = ['.aiexclude', '.claudeignore'];
     for (const file of excludeFiles) {
       const filePath = path.join(repoRoot, file);
-      if (fs.existsSync(filePath)) {
-        fs.chmodSync(filePath, 0o400);
+      try {
+        await fs.promises.access(filePath);
+        await fs.promises.chmod(filePath, 0o400);
+      } catch {
+        // Exclude file doesn't exist or is not readable, skip silently
       }
     }
   } catch (err) {

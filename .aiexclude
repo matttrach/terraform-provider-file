@@ -1,5 +1,5 @@
 # Hide security hooks and scripts
-.gemini/hooks/
+.gemini/
 .claude/hooks/
 !agent-scripts/
 

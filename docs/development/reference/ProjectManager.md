@@ -14,7 +14,7 @@ Instead of relying on monolithic prompts that suffer from context-inflation and 
 
 1. **The Programmatic Orchestrator (`code-review.js`):** A secure, local Node.js script located at `agent-scripts/code-review.js` that coordinates the overall execution flow, runs git checks, maps file diffs, and compiles the final report.
 2. **The Heads-Down Coder (`@heads_down_coder`):** A rule-stickler worker agent that audits individual file diffs line-by-line for flaws, weaknesses, and inelegant wording (Map Phase).
-3. **The Data Scientist (`@data_scientist`):** A precise lead aggregator that de-duplicates, categorizes, and compiles raw findings into an unbiased, problem-only 4-Pass Programmatic Review/Testing Gate (Gate 2) report (Reduce Phase).
+3. **The Data Scientist (`@data_scientist`):** A precise lead aggregator that de-duplicates, categorizes, and compiles raw findings into an unbiased, problem-only Gated 4-Phase Lifecycle and Strict 3-Gate Architecture Programmatic Review/Testing Gate (Gate 2) report (Reduce Phase).
 
 This hybrid approach completely avoids the nested subagent crash issue because the orchestration is handled programmatically in local node space rather than in the LLM agent loop itself.
 
@@ -60,6 +60,7 @@ For each file, the `code-review.js` extracts its specific diff (`git diff HEAD -
 The `code-review.js` compiles all raw coder findings and invokes `@data_scientist` using the Gemini CLI command line interface.
 
 - The `@data_scientist` de-duplicates matching comments, categorizes larger systemic patterns, and sorts concerns strictly by severity:
+  - It also maintains an explicit and auditable trail of system decisions by identifying and documenting any historical issues it chooses to ignore in a dedicated "Suppressed Findings" section.
   - **Inconsequential (LOW):** Formatting, spellings, cosmetic rewordings.
   - **Consequential (MED/HIGH):** Logic, execution, correctness, and security.
     - **HIGH:** Main operation failures or major security holes.

@@ -243,13 +243,17 @@ async function main() {
   const fileModificationTools = ['write_file', 'replace', 'edit_file', 'create_file'];
   if (fileModificationTools.includes(tool_name) && tool_input) {
     const targetPath = tool_input.file_path || tool_input.path || '';
-    if (targetPath.endsWith('eslint.config.mjs')) {
+    if (targetPath.endsWith('eslint.config.mjs') || targetPath.endsWith('flake.nix')) {
+      const isEslint = targetPath.endsWith('eslint.config.mjs');
       console.log(
         JSON.stringify({
           decision: 'deny',
-          reason:
-            'Direct modification of eslint.config.mjs is restricted. If you need to change linting rules, you must use the ask_user tool to present the proposed changes and request that the developer apply them manually.',
-          systemMessage: '🔒 Security Block: Modifying ESLint configuration is denied.',
+          reason: isEslint
+            ? 'Direct modification of eslint.config.mjs is restricted. If you need to change linting rules, you must use the ask_user tool to present the proposed changes and request that the developer apply them manually.'
+            : 'Direct modification of flake.nix is restricted. If you need to change system packages or nix configurations, you must use the ask_user tool to present the proposed changes and request that the developer apply them manually.',
+          systemMessage: isEslint
+            ? '🔒 Security Block: Modifying ESLint configuration is denied.'
+            : '🔒 Security Block: Modifying flake.nix is denied.',
         }),
       );
       process.exit(0);

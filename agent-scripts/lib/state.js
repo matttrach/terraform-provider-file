@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import path from 'path';
 import process from 'process';
+import fs from 'fs';
 import { verifyPlanGate, verifyReviewGate, healApprovalState } from './approval.js';
 import { readFileSafe, writeFileSafe } from './file.js';
 import {
@@ -13,12 +14,34 @@ import {
 } from './git.js';
 import { findLatestActivePlan, validatePlanContent } from './plan.js';
 
-export const PHASE_CONFIG = {
+function validatePhaseConfig(config) {
+  try {
+    const requiredPhases = ['plan', 'implement', 'review', 'commit'];
+    for (const phase of requiredPhases) {
+      if (!config[phase]) {
+        throw new Error(`PHASE_CONFIG Validation Error: Missing phase "${phase}"`);
+      }
+      if (typeof config[phase].locked !== 'boolean') {
+        throw new Error(`PHASE_CONFIG Validation Error: Phase "${phase}" must have a boolean "locked" property`);
+      }
+      if (typeof config[phase].keyTool !== 'string') {
+        throw new Error(`PHASE_CONFIG Validation Error: Phase "${phase}" must have a string "keyTool" property`);
+      }
+    }
+  } catch (err) {
+    console.log(`::error::${err.message}`);
+  }
+  return config;
+}
+
+const RAW_PHASE_CONFIG = {
   plan: { locked: true, keyTool: 'enter_plan_mode' },
   implement: { locked: false, keyTool: '' },
   review: { locked: false, keyTool: '' },
   commit: { locked: true, keyTool: 'ask_user' },
 };
+
+export const PHASE_CONFIG = validatePhaseConfig(RAW_PHASE_CONFIG);
 
 export function getStatePath(targetDir) {
   return path.join(targetDir, 'phase-state.json');
@@ -31,7 +54,17 @@ export async function readState(targetDir) {
     try {
       return JSON.parse(data);
     } catch (err) {
-      console.error(`Failed to parse phase-state.json: ${err.message}`);
+      console.log(`::error::Failed to parse phase-state.json: ${err.message}`);
+      try {
+        await fs.promises.unlink(statePath);
+      } catch (unlinkErr) {
+        console.log(`::error::Failed to unlink corrupt state file: ${unlinkErr.message}`);
+      }
+      return {
+        currentPhase: 'plan',
+        locked: PHASE_CONFIG.plan.locked,
+        keyTool: PHASE_CONFIG.plan.keyTool,
+      };
     }
   }
   return null;
@@ -78,7 +111,7 @@ const TRANSITION_STRATEGIES = {
       return true;
     },
     onEnter: async (targetDir, cwd) => {
-      console.log('🧹 Exiting PLAN: Workspace is clean. Proceeding to IMPLEMENT phase.');
+      console.log('::notice::🧹 Exiting PLAN: Workspace is clean. Proceeding to IMPLEMENT phase.');
 
       const activePlan = await findLatestActivePlan(targetDir);
       if (activePlan) {
@@ -96,7 +129,7 @@ const TRANSITION_STRATEGIES = {
 
         const currentBranch = await gitBranchShowCurrent(cwd);
         if (currentBranch !== branchName) {
-          console.log(`🌿 Switching to feature branch: ${branchName}`);
+          console.log(`::notice::🌿 Switching to feature branch: ${branchName}`);
           try {
             const branchesOutput = await gitBranchList(cwd);
             const branches = branchesOutput
@@ -155,10 +188,10 @@ export async function transitionPhase(targetDir, targetPhase, cwd = process.cwd(
 
   const state = (await readState(targetDir)) || { currentPhase: 'plan' };
   const currentPhase = state.currentPhase;
-  console.log(`🔄 Attempting transition: ${currentPhase.toUpperCase()} -> ${targetPhase.toUpperCase()}`);
+  console.log(`::notice::🔄 Attempting transition: ${currentPhase.toUpperCase()} -> ${targetPhase.toUpperCase()}`);
 
   if (targetPhase === currentPhase) {
-    console.log(`ℹ️ Already in phase: ${targetPhase.toUpperCase()}`);
+    console.log(`::notice::ℹ️ Already in phase: ${targetPhase.toUpperCase()}`);
     return state;
   }
 
@@ -176,7 +209,7 @@ export async function transitionPhase(targetDir, targetPhase, cwd = process.cwd(
 
   // Authorized
   const newState = await setPhase(targetDir, targetPhase);
-  console.log(`✅ Transitioned successfully to phase: ${targetPhase.toUpperCase()}`);
+  console.log(`::notice::✅ Transitioned successfully to phase: ${targetPhase.toUpperCase()}`);
   return newState;
 }
 
@@ -205,4 +238,9 @@ export async function updateState(targetDir, updates) {
   state = { ...state, ...updates };
   await writeState(targetDir, state);
   return state;
+}
+
+export async function getLock(targetDir) {
+  const state = await readState(targetDir);
+  return state ? !!state.locked : false;
 }

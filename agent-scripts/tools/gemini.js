@@ -1,14 +1,12 @@
 #!/usr/bin/env node
-import fs from 'fs';
+import fs from 'node:fs/promises';
 import os from 'os';
 import path from 'path';
 import process from 'process';
 import { fileURLToPath } from 'url';
-import { runGemini, runGeminiWithRetry } from '../lib/gemini.js';
+import { runGemini, runGeminiWithRetry, runGeminiWithValidation } from '../lib/gemini.js';
 
-const fsPromises = fs.promises;
-
-export { runGemini, runGeminiWithRetry };
+export { runGemini, runGeminiWithRetry, runGeminiWithValidation };
 
 function showHelp() {
   console.log(`Usage: gemini.js [options]
@@ -27,9 +25,10 @@ Options:
 
 async function fileExists(filePath) {
   try {
-    await fsPromises.access(filePath);
+    await fs.access(filePath);
     return true;
-  } catch {
+  } catch (err) {
+    console.error(`Error accessing file ${filePath}:`, err);
     return false;
   }
 }
@@ -64,23 +63,23 @@ async function main() {
   let isTempSandbox = false;
 
   if (!sandboxDir) {
-    sandboxDir = await fsPromises.mkdtemp(path.join(os.tmpdir(), 'gemini-sandbox-'));
+    sandboxDir = await fs.mkdtemp(path.join(os.tmpdir(), 'gemini-sandbox-'));
     console.log(`📦 Created temporary sandbox: ${sandboxDir}`);
     isTempSandbox = true;
   } else if (!(await fileExists(sandboxDir))) {
-    await fsPromises.mkdir(sandboxDir, { recursive: true });
+    await fs.mkdir(sandboxDir, { recursive: true });
   }
 
   if (parsed.values['sandbox-file']) {
     const fileToCopy = path.resolve(parsed.values['sandbox-file']);
     if (await fileExists(fileToCopy)) {
       const destPath = path.join(sandboxDir, path.basename(fileToCopy));
-      await fsPromises.copyFile(fileToCopy, destPath);
+      await fs.copyFile(fileToCopy, destPath);
       console.log(`📄 Copied ${fileToCopy} to sandbox.`);
     } else {
       console.error(`❌ Sandbox file not found: ${fileToCopy}`);
       if (isTempSandbox) {
-        await fsPromises.rm(sandboxDir, { recursive: true, force: true });
+        await fs.rm(sandboxDir, { recursive: true, force: true });
       }
       process.exit(1);
     }
@@ -100,7 +99,7 @@ async function main() {
   } finally {
     if (isTempSandbox) {
       console.log(`🧹 Cleaning up temporary sandbox: ${sandboxDir}`);
-      await fsPromises.rm(sandboxDir, { recursive: true, force: true });
+      await fs.rm(sandboxDir, { recursive: true, force: true });
     }
   }
 }

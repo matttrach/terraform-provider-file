@@ -1,15 +1,19 @@
 agentic
 aiexclude
+apos
 aquasecurity
 argjson
 authconfig
 autorelease
 awscli
 backreferenced
+bigram
+bigrams
 bashism
 bashisms
 booldefault
 boolplanmodifier
+bool_validator
 boolvalidator
 bootstrapper
 buildrace
@@ -54,6 +58,7 @@ hmac
 iarna
 inconsequential
 isatty
+jaccard
 jsonfile
 keyid
 kubeconfig
@@ -71,6 +76,7 @@ nosec
 numtide
 nutanix
 oklog
+ollama
 passwordless
 pasteable
 pathing
@@ -99,6 +105,7 @@ signingkey
 simplifiable
 stalediff
 staticcheck
+statting
 stdenv
 stringdefault
 stringplanmodifier
@@ -107,6 +114,7 @@ svchost
 tagparser
 templatefile
 terraformrc
+terminalquotaerror
 testacc
 testaccrelay
 testracc

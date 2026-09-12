@@ -14,10 +14,14 @@ const execFileAsync = promisify(execFile);
  */
 export async function writeFileSafe(filePath, content, options = {}) {
   const dir = path.dirname(filePath);
-  if (!fs.existsSync(dir)) {
+  try {
     await fsPromises.mkdir(dir, { recursive: true });
+    await fsPromises.writeFile(filePath, content, options);
+    return true;
+  } catch (err) {
+    console.log(`::error::Failed to write file ${filePath}: ${err.message}`);
+    return false;
   }
-  await fsPromises.writeFile(filePath, content, options);
 }
 
 /**
@@ -35,27 +39,25 @@ export function fileExistsSafe(filePath) {
  * Safely deletes a file if it exists, without throwing errors asynchronously.
  */
 export async function deleteFileSafe(filePath) {
-  if (fs.existsSync(filePath)) {
-    try {
-      await fsPromises.rm(filePath, { force: true });
-      return true;
-    } catch (err) {
-      console.error(`::error::Failed to delete ${filePath}: ${err.message}`);
-    }
+  try {
+    await fsPromises.rm(filePath, { force: true });
+    return true;
+  } catch (err) {
+    console.error(`::error::Failed to delete ${filePath}: ${err.message}`);
+    return false;
   }
-  return false;
 }
 
 /**
  * Safely reads a file if it exists, otherwise returns null asynchronously.
  */
 export async function readFileSafe(filePath, encoding = 'utf-8') {
-  if (!fs.existsSync(filePath)) {
-    return null;
-  }
   try {
     return await fsPromises.readFile(filePath, encoding);
   } catch (err) {
+    if (err.code === 'ENOENT') {
+      return null;
+    }
     console.error(`::error::Failed to read ${filePath}: ${err.message}`);
     return null;
   }
@@ -65,11 +67,6 @@ export async function readFileSafe(filePath, encoding = 'utf-8') {
  * Safely executes a script file asynchronously.
  */
 export async function executeFileSafe(filePath, args = [], options = {}) {
-  if (!fs.existsSync(filePath)) {
-    console.error(`::error::Failed to execute ${filePath}: File not found.`);
-    return null;
-  }
-
   let cmd = filePath;
   let finalArgs = [...args];
 
@@ -91,6 +88,10 @@ export async function executeFileSafe(filePath, args = [], options = {}) {
     const { stdout } = await execFileAsync(cmd, finalArgs, finalOptions);
     return stdout;
   } catch (err) {
+    if (err.code === 'ENOENT' || (err.message && err.message.includes('ENOENT'))) {
+      console.error(`::error::Failed to execute ${filePath}: File not found.`);
+      return null;
+    }
     console.error(`::error::Failed to execute ${filePath}: ${err.message}`);
     if (err.stdout && err.stdout.toString().trim()) {
       console.error(`::error::Stdout:\n${err.stdout.toString().trim()}`);
@@ -219,7 +220,7 @@ export async function resolveTargetDir(cwd = process.cwd()) {
  * @param {string} sandboxPath - The path to the sandbox directory to purge.
  */
 export function registerCleanupTraps(sandboxPath) {
-  const cleanup = () => {
+  const cleanupSync = () => {
     if (sandboxPath && fs.existsSync(sandboxPath)) {
       try {
         fs.rmSync(sandboxPath, { recursive: true, force: true });
@@ -230,19 +231,29 @@ export function registerCleanupTraps(sandboxPath) {
     }
   };
 
-  process.on('exit', cleanup);
-  process.on('SIGINT', () => {
-    cleanup();
-    process.exit(1);
+  const cleanupAsync = async () => {
+    if (sandboxPath) {
+      try {
+        await fsPromises.rm(sandboxPath, { recursive: true, force: true });
+        console.error(`🧹 Secure Sandbox Cleaned Up: ${sandboxPath}`);
+      } catch (err) {
+        if (err.code !== 'ENOENT') {
+          console.warn(`⚠️ Cleanup failed for ${sandboxPath}: ${err.message}`);
+        }
+      }
+    }
+  };
+
+  process.once('exit', cleanupSync);
+  process.once('SIGINT', () => {
+    cleanupAsync().finally(() => process.exit(1));
   });
-  process.on('SIGTERM', () => {
-    cleanup();
-    process.exit(1);
+  process.once('SIGTERM', () => {
+    cleanupAsync().finally(() => process.exit(1));
   });
-  process.on('uncaughtException', (err) => {
+  process.once('uncaughtException', (err) => {
     console.error(`::error::Fatal Uncaught Exception: ${err.stack || err.message}`);
-    cleanup();
-    process.exit(1);
+    cleanupAsync().finally(() => process.exit(1));
   });
 }
 
@@ -252,7 +263,8 @@ export function registerCleanupTraps(sandboxPath) {
  * @returns {Promise<string>} The path to the created directory.
  */
 export async function mkdtempSafe(prefix) {
-  return await fsPromises.mkdtemp(prefix);
+  const dir = await fsPromises.mkdtemp(prefix);
+  return await fsPromises.realpath(dir);
 }
 
 /**

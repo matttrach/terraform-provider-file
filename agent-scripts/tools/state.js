@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import process from 'process';
 import { fileURLToPath } from 'url';
+import fs from 'fs/promises';
 import {
   PHASE_CONFIG,
   initializeState,
@@ -11,6 +12,7 @@ import {
   updateState,
   getStatePath,
   writeState,
+  getLock,
 } from '../lib/state.js';
 import { resolveTargetDir } from '../lib/file.js';
 
@@ -24,6 +26,7 @@ export {
   updateState,
   getStatePath,
   writeState,
+  getLock,
 };
 
 function showHelp() {
@@ -98,6 +101,7 @@ async function main() {
         updates = JSON.parse(jsonStr);
       } catch (parseErr) {
         console.error(`Error: Failed to parse update JSON: ${parseErr.message}`);
+        await fs.unlink(getStatePath(targetDir)).catch(() => {});
         process.exit(1);
       }
       const state = await updateState(targetDir, updates);
@@ -118,3 +122,5 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     process.exit(1);
   });
 }
+
+export default main;

@@ -13,7 +13,7 @@ For a detailed explanation of the three-tier hierarchy (Libraries, Tools, Script
 Our development lifecycle enforces three rigorous cryptographic and programmatic gates to protect the repository's integrity and quality:
 
 1. **Planning Gate (Gate 1) [User-facing]**: Triggered after drafting a proposed change checklist under `plans/`. The developer must cryptographically sign off on the plan (via GPG/Touch ID), writing the `plan-approval.json` signature to unlock the Implement Phase.
-2. **Programmatic Review/Testing Gate (Gate 2) [Programmatic/Automated]**: Triggered during local test/linter verification. This gate programmatically runs our Map-Reduce Review pipeline via `code-review.js`. It delegates parallel file reviews to `@heads_down_coder` and architectural review to `@lead_architect`, consolidating results via `@data_scientist` and evaluating them via `@project_manager`. If no remediation tasks remain, it automatically signs the `review-approval.json` signature on disk.
+2. **Programmatic Review/Testing Gate (Gate 2)**: Triggered during local test/linter verification. If no remediation tasks remain, it automatically signs the `review-approval.json` signature on disk.
 3. **Commit Gate (Gate 3) [User-facing]**: Triggered when initiating final push and PR creation. The developer must cryptographically sign the unstaged Git diff (via GPG/Touch ID), writing `user-approval.json` to securely stage, commit, and push changes to GitHub.
 
 ---
@@ -56,6 +56,7 @@ These executable command-line interfaces act as multi-call binary wrappers and t
 
 These goal-oriented, cross-cutting automation scripts execute sequences of Level-2 tools to accomplish complex repository pipeline tasks:
 
+- **`auto-remediate.js`**: Scalable, context-engineered execution engine that parses the remediation worklist, batches target files across a pool of up to 5 sandboxed subagents to apply surgical fixes, and verifies all modifications with an Adversarial Local Verifier.
 - **`cleanup-data.js`**: Dynamically detects the active session ID via `logs.json` and purges older, stale temporary directories securely.
 - **`code-review.js`**: Core parallelized Map-Reduce review orchestrator. Executes sandboxed, rate-limit resilient subagent audits.
 - **`exercise-agents.js`**: Sequentially exercises requested Gemini models (pro, flash, lite) using isolated temporary sandboxes to manage quota reset times.

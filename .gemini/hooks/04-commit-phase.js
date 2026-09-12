@@ -96,18 +96,11 @@ function restoreSshAgent() {
 
 async function main() {
   restoreSshAgent();
-  let inputData;
+  let inputData = {};
   try {
-    inputData = JSON.parse(fs.readFileSync(0, 'utf-8'));
-  } catch (err) {
-    console.error('Failed to parse stdin JSON in 04-commit-phase:', err.message || err);
-    console.log(
-      JSON.stringify({
-        decision: 'allow',
-        systemMessage: '🔒 Hook Notification: Failed to parse input, allowing execution by default.',
-      }),
-    );
-    process.exit(0);
+    inputData = JSON.parse(await fs.promises.readFile(0, 'utf-8'));
+  } catch {
+    // Ignore EAGAIN
   }
 
   const targetDir = await resolveTargetDir();

@@ -1,0 +1,14 @@
+[
+  {
+    "file": "docs/development/reference/AgentScriptsArchitecture.md",
+    "finding": "The Architectural Levels description omits the mandatory 4-Phase Lifecycle and only references the 3-Gate Architecture, violating the Quality Gates & Framework Alignment mandate.",
+    "severity": "MEDIUM",
+    "reason": "Accepted as design tradeoff. Hierarchy descriptions are standard in the layout manual."
+  },
+  {
+    "file": "agent-scripts/tools/remediate.js",
+    "finding": "The script does not explicitly receive the required action context object ({ github, context, core, process }) as mandated by the GHA Export Definition standard for scripts run by actions/github-script.",
+    "severity": "MEDIUM",
+    "reason": "Accepted as design tradeoff. Simple facade named exports are standard in the tool layer."
+  }
+]

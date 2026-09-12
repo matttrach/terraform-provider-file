@@ -4,7 +4,7 @@
 
 ## Abstract
 
-To maintain absolute system integrity and prevent unauthorized code modifications in an autonomous programming workspace, the Agentic Framework implements a secure, **cryptographically chained gating pipeline**. This system mathematically guarantees that no code can be committed or pushed without satisfying sequential, hardware-authorized checkpoints: Planning (Gate 1), Programmatic Review/Testing Gate (Gate 2), and Commit Gate (Gate 3).
+To maintain absolute system integrity and prevent unauthorized code modifications in an autonomous programming workspace, the Agentic Framework implements a secure, **cryptographically chained gating pipeline**. This system mathematically guarantees that no code can be committed or pushed without satisfying sequential, hardware-authorized checkpoints: Planning Gate (Gate 1), Programmatic Review/Testing Gate (Gate 2), and Commit Gate (Gate 3).
 
 ---
 
@@ -145,6 +145,12 @@ To guarantee absolute objectivity, the subagents are **fully isolated and sandbo
      2. Exactly 0 findings are reported, verified by the presence of the clean marker `0 comments/findings` or `0 findings`.
    - If the report is successfully verified as complete and clean, the hook **natively and securely** writes `review-approval.json` to disk, signing it with the active `diff_hash` and `plan_hash`.
    - If any pass is unchecked or if findings are recorded, the hook instantly unlinks (deletes) the signatures, revoking any previous approvals.
+3. **Gate Bypass Prevention & Explicit Gate Enforcement**:
+   - The main agent and subagents are strictly forbidden from modifying any subagent configuration files (`.gemini/agents/*.md`) or review-related scripts to artificially pass the review gate. Any attempt to bypass the intent of these gates (including modifying subagent prompts, tampering with signature files, or altering enforcer scripts) will result in the immediate termination of the process and the end of the session.
+   - **Planning Gate (Gate 1)**: The ONLY way to advance past the planning gate is to have the user explicitly approve the drafted plan within an `ask_user` tool call.
+   - **Review Gate (Gate 2)**: The ONLY way to advance past the review gate is for the quality of the code to be high enough to pass programmatic and peer inspection. Subagents and review scripts MUST remain unaltered and fully trusted.
+   - **Commit Gate (Gate 3)**: The ONLY way to advance past the commit gate is for the user to manually review the unstaged changes and explicitly approve them.
+   - **Best Practice**: ALWAYS present the unstaged code changes to the user so they have the opportunity to review, ask questions, and request refinements BEFORE formally asking for commit approval.
 
 This architecture prevents the main agent or subagent from manually writing approvals or manipulating results, enforcing a completely deterministic quality gateway.
 

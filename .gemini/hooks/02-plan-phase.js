@@ -75,18 +75,21 @@ process.on('uncaughtException', (err) => {
 });
 
 async function main() {
-  let inputData;
+  let inputData = {};
   try {
     inputData = JSON.parse(fs.readFileSync(0, 'utf-8'));
-  } catch (err) {
-    console.error('Failed to parse stdin JSON:', err);
-    console.log(
+  } catch {
+    // Ignore EAGAIN
+  }
+
+  if (!inputData || typeof inputData !== 'object' || Array.isArray(inputData)) {
+    process.stdout.write(
       JSON.stringify({
-        decision: 'allow',
-        systemMessage: '🔒 Hook Notification: Failed to parse input, allowing execution by default.',
-      }),
+        decision: 'deny',
+        systemMessage: 'Invalid JSON input',
+      }) + '\n',
     );
-    process.exit(0);
+    process.exit(1);
   }
 
   // Enforce Gate Artifact Tamper Protection
