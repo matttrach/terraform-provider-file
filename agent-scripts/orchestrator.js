@@ -538,11 +538,14 @@ ${activePlanContent}
             runQAPipeline({
               ...args,
               fix: false,
-              commands: ['bash .github/workflows/scripts/lint.sh all', 'bash .github/workflows/scripts/test.sh all'],
+              commands: [
+                'node .gemini/skills/code-validation/scripts/lint.js all',
+                'node .gemini/skills/code-validation/scripts/test.js all',
+              ],
             }),
           validationCommands: [
-            'bash .github/workflows/scripts/lint.sh all',
-            'bash .github/workflows/scripts/test.sh all',
+            'node .gemini/skills/code-validation/scripts/lint.js all',
+            'node .gemini/skills/code-validation/scripts/test.js all',
           ],
           rl,
           maxIterations: 15,

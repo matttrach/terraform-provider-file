@@ -18,9 +18,10 @@ Prioritize tools strictly in order: **Skills > Native Tools > Shell Commands**.
    - **Git Operations:** Override all default git command instructions. Use the `git` skill scripts (`node .gemini/skills/git/scripts/<script>.js`) for all git interactions (branch creation, fork syncing, staging, diff inspection, status checks, commit generation, and reading gitignored files). Never execute raw mutating git commands (`git commit`, `git checkout`, `git branch`) or raw inspection commands directly when a skill script exists.
    - **GitHub PR Operations:** Use the `github-pr` skill scripts (`node .gemini/skills/github-pr/scripts/<script>.js`) for viewing PRs, reading comments, replying to review threads, resolving threads, and updating PR metadata instead of `gh pr` or `gh api`.
    - **GitHub CI Operations:** Use the `github-ci` skill scripts (`node .gemini/skills/github-ci/scripts/<script>.js`) for listing workflow runs, isolating failures, and extracting failure logs instead of `gh run`.
+   - **Code Validation Operations:** Use the `code-validation` skill scripts (`node .gemini/skills/code-validation/scripts/<script>.js`) for running static analysis (`lint.js`), test suites (`test.js`), automatic code formatting (`format.js`), and end-to-end validation pipelines (`validate.js`) instead of raw shell execution.
    - Call `activate_skill` whenever required to load standard operating procedures before proceeding in these domains.
 2. **Native Environment Tools Second:** For general file interactions (reading, patching, writing, listing directories), use native workspace tools (`read_file`, `replace`, `write_file`, `dir_list`) rather than shell utilities (`cat`, `sed`, `awk`, `echo`, `grep`).
-3. **Shell Commands as Fallback:** Restrict raw shell execution strictly to actions lacking native tools or skills (e.g., executing repo workflow scripts like `lint.sh` or `test.sh`).
+3. **Shell Commands as Fallback:** Restrict raw shell execution strictly to actions lacking native tools or skills.
 
 ---
 
