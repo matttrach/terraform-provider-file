@@ -18,8 +18,11 @@ const execAsync = promisify(exec);
 export async function runQAPipeline({
   fix = false,
   execFn = null,
-  commands = ['bash .github/workflows/scripts/lint.sh all', 'bash .github/workflows/scripts/test.sh all'],
-  fixerCommand = 'bash .github/workflows/scripts/lint.sh all --fix',
+  commands = [
+    'node .gemini/skills/code-validation/scripts/lint.js all',
+    'node .gemini/skills/code-validation/scripts/test.js all',
+  ],
+  fixerCommand = 'node .gemini/skills/code-validation/scripts/lint.js all --fix',
 } = {}) {
   const runner = execFn || execAsync;
 

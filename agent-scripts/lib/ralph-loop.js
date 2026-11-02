@@ -554,7 +554,10 @@ export function buildReviewPrompt({
   stateBefore,
   lastValidation = null,
   activePlan = '',
-  validationCommands = ['bash .github/workflows/scripts/lint.sh all', 'go test ./...'],
+  validationCommands = [
+    'node .gemini/skills/code-validation/scripts/lint.js all',
+    'node .gemini/skills/code-validation/scripts/test.js all',
+  ],
   skillsContext = '',
 } = {}) {
   const diff = stateBefore?.diff || '';
@@ -757,7 +760,10 @@ export function buildImplementationPrompt({
   lastValidation = null,
   iteration = 1,
   maxIterations = 15,
-  validationCommands = ['bash .github/workflows/scripts/lint.sh all', 'go test ./...'],
+  validationCommands = [
+    'node .gemini/skills/code-validation/scripts/lint.js all',
+    'node .gemini/skills/code-validation/scripts/test.js all',
+  ],
   skillsContext = '',
 } = {}) {
   const diff = stateBefore?.diff || '';
@@ -1016,7 +1022,10 @@ export function buildBatchSuggestionImplementationPrompt({
   lastValidation = null,
   currentSuggestionIndex = 1,
   totalSuggestions = 1,
-  validationCommands = ['bash .github/workflows/scripts/lint.sh all', 'go test ./...'],
+  validationCommands = [
+    'node .gemini/skills/code-validation/scripts/lint.js all',
+    'node .gemini/skills/code-validation/scripts/test.js all',
+  ],
   skillsContext = '',
 } = {}) {
   const diff = stateBefore?.diff || '';
@@ -1340,7 +1349,10 @@ export async function runRalphLoop(options = {}) {
     iterationRunner = null,
     buildPrompt = buildReviewPrompt,
     systemInstructions = DEFAULT_REVIEW_SYSTEM_INSTRUCTIONS,
-    validationCommands = ['bash .github/workflows/scripts/lint.sh all', 'go test ./...'],
+    validationCommands = [
+      'node .gemini/skills/code-validation/scripts/lint.js all',
+      'node .gemini/skills/code-validation/scripts/test.js all',
+    ],
     model = null,
     maxIterations = 15,
     maxTurnsPerSession = 20,
@@ -1777,7 +1789,10 @@ export async function runImplementationRalphLoop(options = {}) {
     proModel = 'gemini-3.1-pro-preview',
     proImplementationIterations = 1,
     validator = () => runQAPipeline({ fix: false }),
-    validationCommands = ['bash .github/workflows/scripts/lint.sh all', 'go test ./...'],
+    validationCommands = [
+      'node .gemini/skills/code-validation/scripts/lint.js all',
+      'node .gemini/skills/code-validation/scripts/test.js all',
+    ],
     repoRoot = null,
     planPath = null,
     skillsContext = '',

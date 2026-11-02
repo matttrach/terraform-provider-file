@@ -42,6 +42,7 @@ façade
 façades
 fetchurl
 fetchzip
+frontmatter
 geminiignore
 genai
 genproto

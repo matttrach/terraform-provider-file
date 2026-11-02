@@ -16,8 +16,8 @@ test('runQAPipeline execution flow and concurrency rules', async (t) => {
 
     assert.strictEqual(result.success, true);
     assert.deepStrictEqual(executedCommands.sort(), [
-      'bash .github/workflows/scripts/lint.sh all',
-      'bash .github/workflows/scripts/test.sh all',
+      'node .gemini/skills/code-validation/scripts/lint.js all',
+      'node .gemini/skills/code-validation/scripts/test.js all',
     ]);
   });
 
@@ -38,7 +38,7 @@ test('runQAPipeline execution flow and concurrency rules', async (t) => {
     const result = await runQAPipeline({ fix: true, execFn: mockExec });
 
     assert.strictEqual(result.success, true);
-    assert.strictEqual(callOrder[0], 'bash .github/workflows/scripts/lint.sh all --fix');
+    assert.strictEqual(callOrder[0], 'node .gemini/skills/code-validation/scripts/lint.js all --fix');
     assert.strictEqual(callOrder.length, 3);
     assert.ok(result.stdout.includes('fixed files'));
   });
