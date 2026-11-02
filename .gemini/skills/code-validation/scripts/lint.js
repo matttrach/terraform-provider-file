@@ -113,7 +113,8 @@ export async function runLint({
   stdio = 'inherit',
   commandRunner = runCommand,
 } = {}) {
-  const repoRoot = cwd || (await getRepoRoot());
+  const repoRoot = await getRepoRoot();
+  const workingDir = cwd || repoRoot;
   const lintScriptPath = path.join(repoRoot, '.github/workflows/scripts/lint.sh');
 
   const scriptArgs = [mode];
@@ -122,7 +123,7 @@ export async function runLint({
   }
 
   const result = await commandRunner('bash', [lintScriptPath, ...scriptArgs], {
-    cwd: repoRoot,
+    cwd: workingDir,
     stdio,
   });
 

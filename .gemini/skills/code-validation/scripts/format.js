@@ -132,10 +132,8 @@ export async function runFormat({
         res = await commandRunner('gofmt', ['-s', '-w', '-e', '.'], { cwd: workingDir, stdio });
       }
     } else if (tool === 'prettier') {
-      const prettierArgs = check
-        ? ['--no-install', 'prettier', '--check', '.']
-        : ['--no-install', 'prettier', '--write', '.'];
-      res = await commandRunner('npx', prettierArgs, { cwd: workingDir, stdio });
+      const prettierArgs = check ? ['--check', '.'] : ['--write', '.'];
+      res = await commandRunner('prettier', prettierArgs, { cwd: workingDir, stdio });
     } else if (tool === 'shfmt') {
       const scriptArgs = check ? ['shfmt'] : ['shfmt', '--fix'];
       res = await commandRunner('bash', [lintScriptPath, ...scriptArgs], { cwd: workingDir, stdio });

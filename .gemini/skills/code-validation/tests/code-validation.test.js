@@ -470,4 +470,44 @@ test('code-validation skill - execution integration', async (t) => {
     assert.strictEqual(executed[0].cmd, 'gofmt');
     assert.deepStrictEqual(executed[0].args, ['-l', '.']);
   });
+
+  await t.test('runFormat executes prettier directly without npx wrapper', async () => {
+    const executed = [];
+    const mockRunner = async (cmd, args) => {
+      executed.push({ cmd, args });
+      return { success: true, code: 0, stdout: 'clean', stderr: '' };
+    };
+    const res = await runFormat({
+      target: 'prettier',
+      check: true,
+      commandRunner: mockRunner,
+    });
+    assert.strictEqual(res.target, 'prettier');
+    assert.strictEqual(res.success, true);
+    assert.strictEqual(executed.length, 1);
+    assert.strictEqual(executed[0].cmd, 'prettier');
+    assert.deepStrictEqual(executed[0].args, ['--check', '.']);
+  });
+
+  await t.test('runLint resolves script from getRepoRoot while passing custom cwd to commandRunner', async () => {
+    const executed = [];
+    const mockRunner = async (cmd, args, opts) => {
+      executed.push({ cmd, args, opts });
+      return { success: true, code: 0, stdout: 'ok', stderr: '' };
+    };
+    const customCwd = '/custom/fixture/dir';
+    const res = await runLint({
+      mode: 'eslint',
+      cwd: customCwd,
+      commandRunner: mockRunner,
+    });
+    assert.strictEqual(res.success, true);
+    assert.strictEqual(executed.length, 1);
+    assert.ok(
+      !executed[0].args[0].startsWith(customCwd),
+      'Script path must be resolved from repo root, not custom cwd',
+    );
+    assert.ok(executed[0].args[0].endsWith('.github/workflows/scripts/lint.sh'));
+    assert.strictEqual(executed[0].opts.cwd, customCwd);
+  });
 });
