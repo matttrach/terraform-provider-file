@@ -80,14 +80,15 @@ export function parseTestArgs(rawArgs = []) {
  * @param {string} [options.mode='unit'] - The test mode to execute
  * @param {string} [options.cwd] - Working directory (defaults to repo root)
  * @param {'inherit'|'pipe'} [options.stdio='inherit'] - Child process stdio configuration
+ * @param {Function} [options.commandRunner=runCommand] - Custom command runner function
  * @returns {Promise<{success: boolean, code: number, stdout: string, stderr: string, mode: string}>}
  */
-export async function runTest({ mode = 'unit', cwd = null, stdio = 'inherit' } = {}) {
+export async function runTest({ mode = 'unit', cwd = null, stdio = 'inherit', commandRunner = runCommand } = {}) {
   const repoRoot = await getRepoRoot();
   const workingDir = cwd || repoRoot;
   const testScriptPath = path.join(repoRoot, '.github/workflows/scripts/test.sh');
 
-  const result = await runCommand('bash', [testScriptPath, mode], {
+  const result = await commandRunner('bash', [testScriptPath, mode], {
     cwd: workingDir,
     stdio,
   });

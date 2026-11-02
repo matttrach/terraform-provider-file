@@ -83,9 +83,16 @@ export function parseFormatArgs(rawArgs = []) {
  * @param {boolean} [options.check=false] - Whether to verify without writing modifications
  * @param {string} [options.cwd] - Working directory (defaults to repo root)
  * @param {'inherit'|'pipe'} [options.stdio='inherit'] - Child process stdio configuration
+ * @param {Function} [options.commandRunner=runCommand] - Custom command runner function
  * @returns {Promise<{success: boolean, code: number, results: Array<{target: string, success: boolean, code: number}>, target: string, check: boolean}>}
  */
-export async function runFormat({ target = 'all', check = false, cwd = null, stdio = 'inherit' } = {}) {
+export async function runFormat({
+  target = 'all',
+  check = false,
+  cwd = null,
+  stdio = 'inherit',
+  commandRunner = runCommand,
+} = {}) {
   if (target !== 'all' && !SUPPORTED_TARGETS.includes(target)) {
     return {
       success: false,
@@ -110,7 +117,7 @@ export async function runFormat({ target = 'all', check = false, cwd = null, std
     let res;
     if (tool === 'go') {
       if (check) {
-        res = await runCommand('gofmt', ['-l', '.'], { cwd: workingDir, stdio: 'pipe' });
+        res = await commandRunner('gofmt', ['-l', '.'], { cwd: workingDir, stdio: 'pipe' });
         if (res.success && res.stdout.trim().length > 0) {
           res.success = false;
           res.code = 1;
@@ -122,19 +129,19 @@ export async function runFormat({ target = 'all', check = false, cwd = null, std
           if (err) console.error(err);
         }
       } else {
-        res = await runCommand('gofmt', ['-s', '-w', '-e', '.'], { cwd: workingDir, stdio });
+        res = await commandRunner('gofmt', ['-s', '-w', '-e', '.'], { cwd: workingDir, stdio });
       }
     } else if (tool === 'prettier') {
       const prettierArgs = check
         ? ['--no-install', 'prettier', '--check', '.']
         : ['--no-install', 'prettier', '--write', '.'];
-      res = await runCommand('npx', prettierArgs, { cwd: workingDir, stdio });
+      res = await commandRunner('npx', prettierArgs, { cwd: workingDir, stdio });
     } else if (tool === 'shfmt') {
       const scriptArgs = check ? ['shfmt'] : ['shfmt', '--fix'];
-      res = await runCommand('bash', [lintScriptPath, ...scriptArgs], { cwd: workingDir, stdio });
+      res = await commandRunner('bash', [lintScriptPath, ...scriptArgs], { cwd: workingDir, stdio });
     } else if (tool === 'golangci-lint') {
       const scriptArgs = check ? ['golangci-lint'] : ['golangci-lint', '--fix'];
-      res = await runCommand('bash', [lintScriptPath, ...scriptArgs], { cwd: workingDir, stdio });
+      res = await commandRunner('bash', [lintScriptPath, ...scriptArgs], { cwd: workingDir, stdio });
     }
 
     const toolSuccess = res.success;

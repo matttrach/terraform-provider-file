@@ -103,11 +103,17 @@ export function parseLintArgs(rawArgs = []) {
  * @param {boolean} [options.fix=false] - Whether to apply fixes where supported
  * @param {string} [options.cwd] - Working directory (defaults to repo root)
  * @param {'inherit'|'pipe'} [options.stdio='inherit'] - Child process stdio configuration
+ * @param {Function} [options.commandRunner=runCommand] - Custom command runner function
  * @returns {Promise<{success: boolean, code: number, stdout: string, stderr: string, mode: string, fix: boolean}>}
  */
-export async function runLint({ mode = 'all', fix = false, cwd = null, stdio = 'inherit' } = {}) {
-  const repoRoot = await getRepoRoot();
-  const workingDir = cwd || repoRoot;
+export async function runLint({
+  mode = 'all',
+  fix = false,
+  cwd = null,
+  stdio = 'inherit',
+  commandRunner = runCommand,
+} = {}) {
+  const repoRoot = cwd || (await getRepoRoot());
   const lintScriptPath = path.join(repoRoot, '.github/workflows/scripts/lint.sh');
 
   const scriptArgs = [mode];
@@ -115,8 +121,8 @@ export async function runLint({ mode = 'all', fix = false, cwd = null, stdio = '
     scriptArgs.push('--fix');
   }
 
-  const result = await runCommand('bash', [lintScriptPath, ...scriptArgs], {
-    cwd: workingDir,
+  const result = await commandRunner('bash', [lintScriptPath, ...scriptArgs], {
+    cwd: repoRoot,
     stdio,
   });
 

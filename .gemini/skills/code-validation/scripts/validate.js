@@ -118,6 +118,7 @@ export function parseValidateArgs(rawArgs = []) {
  * @param {boolean} [options.skipTest=false] - Skip tests
  * @param {string} [options.cwd] - Working directory (defaults to repo root)
  * @param {'inherit'|'pipe'} [options.stdio='inherit'] - Child process stdio configuration
+ * @param {Function} [options.commandRunner] - Custom command runner function
  * @returns {Promise<{success: boolean, steps: {format?: object, lint?: object, test?: object}}>}
  */
 export async function runValidate({
@@ -128,6 +129,7 @@ export async function runValidate({
   skipTest = false,
   cwd = null,
   stdio = 'inherit',
+  commandRunner = null,
 } = {}) {
   const steps = {};
   let overallSuccess = true;
@@ -136,7 +138,11 @@ export async function runValidate({
     if (stdio === 'inherit') {
       console.log('--- Step 1: Auto-Formatting Codebase ---');
     }
-    const formatResult = await runFormat({ target: 'all', check: false, cwd, stdio });
+    const formatOpts = { target: 'all', check: false, cwd, stdio };
+    if (commandRunner) {
+      formatOpts.commandRunner = commandRunner;
+    }
+    const formatResult = await runFormat(formatOpts);
     steps.format = formatResult;
     if (!formatResult.success) {
       overallSuccess = false;
@@ -147,7 +153,11 @@ export async function runValidate({
     if (stdio === 'inherit') {
       console.log(`--- Step ${fix ? '2' : '1'}: Static Analysis [mode: ${lintMode}] ---`);
     }
-    const lintResult = await runLint({ mode: lintMode, fix: false, cwd, stdio });
+    const lintOpts = { mode: lintMode, fix: false, cwd, stdio };
+    if (commandRunner) {
+      lintOpts.commandRunner = commandRunner;
+    }
+    const lintResult = await runLint(lintOpts);
     steps.lint = lintResult;
     if (!lintResult.success) {
       overallSuccess = false;
@@ -159,7 +169,11 @@ export async function runValidate({
     if (stdio === 'inherit') {
       console.log(`--- Step ${testStepNum}: Test Suite [mode: ${testMode}] ---`);
     }
-    const testResult = await runTest({ mode: testMode, cwd, stdio });
+    const testOpts = { mode: testMode, cwd, stdio };
+    if (commandRunner) {
+      testOpts.commandRunner = commandRunner;
+    }
+    const testResult = await runTest(testOpts);
     steps.test = testResult;
     if (!testResult.success) {
       overallSuccess = false;

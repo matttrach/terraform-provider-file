@@ -387,59 +387,87 @@ test('code-validation skill - execution integration', async (t) => {
     assert.strictEqual(res.steps.test, undefined);
   });
 
-  await t.test('runValidate executes format step when fix is true', async () => {
+  await t.test('runValidate executes format step when fix is true with mock commandRunner', async () => {
+    const executed = [];
+    const mockRunner = async (cmd, args) => {
+      executed.push({ cmd, args });
+      return { success: true, code: 0, stdout: 'ok', stderr: '' };
+    };
     const res = await runValidate({
       fix: true,
       skipLint: true,
       skipTest: true,
-      stdio: 'pipe',
+      commandRunner: mockRunner,
     });
-    assert.strictEqual(typeof res.success, 'boolean');
+    assert.strictEqual(res.success, true);
     assert.ok(res.steps.format !== undefined);
     assert.strictEqual(res.steps.format.target, 'all');
+    assert.strictEqual(executed.length, 4);
   });
 
-  await t.test('runValidate reports success: false when a sub-step fails', async () => {
-    // Intentionally pass an invalid mode that will fail the bash script execution
+  await t.test('runValidate reports success: false when a sub-step fails with mock commandRunner', async () => {
+    const mockRunner = async () => ({
+      success: false,
+      code: 2,
+      stdout: '',
+      stderr: 'Lint error',
+    });
     const res = await runValidate({
       skipLint: false,
       skipTest: true,
-      lintMode: 'invalid-fail-mode',
-      stdio: 'pipe',
+      lintMode: 'eslint',
+      commandRunner: mockRunner,
     });
     assert.strictEqual(res.success, false);
     assert.strictEqual(res.steps.lint.success, false);
+    assert.strictEqual(res.steps.lint.code, 2);
   });
 
-  await t.test('runLint executes with stdio pipe and valid mode', async () => {
-    // Run an extremely fast lint mode that is expected to pass
-    const res = await runLint({ mode: 'cspell', stdio: 'pipe' });
+  await t.test('runLint delegates to commandRunner with proper args', async () => {
+    const executed = [];
+    const mockRunner = async (cmd, args) => {
+      executed.push({ cmd, args });
+      return { success: true, code: 0, stdout: 'cspell passed', stderr: '' };
+    };
+    const res = await runLint({ mode: 'cspell', commandRunner: mockRunner });
     assert.strictEqual(res.mode, 'cspell');
-    // We cannot definitively assert res.success because it depends on the workspace state,
-    // but we can assert it returns the expected structure
-    assert.ok(typeof res.success === 'boolean');
-    assert.ok(typeof res.stdout === 'string');
-    assert.ok(typeof res.stderr === 'string');
+    assert.strictEqual(res.success, true);
+    assert.strictEqual(res.stdout, 'cspell passed');
+    assert.strictEqual(executed[0].cmd, 'bash');
+    assert.ok(executed[0].args[0].endsWith('lint.sh'));
+    assert.strictEqual(executed[0].args[1], 'cspell');
   });
 
-  await t.test('runTest executes with stdio pipe and valid mode', async () => {
-    // 'agent-scripts' mode runs node tests which are very fast
-    const res = await runTest({ mode: 'agent-scripts', stdio: 'pipe' });
-    assert.strictEqual(res.mode, 'agent-scripts');
-    assert.ok(typeof res.success === 'boolean');
-    assert.ok(typeof res.stdout === 'string');
-    assert.ok(typeof res.stderr === 'string');
+  await t.test('runTest delegates to commandRunner without recursion', async () => {
+    const executed = [];
+    const mockRunner = async (cmd, args) => {
+      executed.push({ cmd, args });
+      return { success: true, code: 0, stdout: 'tests passed', stderr: '' };
+    };
+    const res = await runTest({ mode: 'unit', commandRunner: mockRunner });
+    assert.strictEqual(res.mode, 'unit');
+    assert.strictEqual(res.success, true);
+    assert.strictEqual(res.stdout, 'tests passed');
+    assert.strictEqual(executed[0].cmd, 'bash');
+    assert.ok(executed[0].args[0].endsWith('test.sh'));
+    assert.strictEqual(executed[0].args[1], 'unit');
   });
 
-  await t.test('runFormat normalizes gofmt target to go', async () => {
-    // dry-run check of gofmt
+  await t.test('runFormat normalizes gofmt target to go with mock commandRunner', async () => {
+    const executed = [];
+    const mockRunner = async (cmd, args) => {
+      executed.push({ cmd, args });
+      return { success: true, code: 0, stdout: '', stderr: '' };
+    };
     const res = await runFormat({
       target: 'gofmt',
       check: true,
-      stdio: 'pipe',
+      commandRunner: mockRunner,
     });
     assert.strictEqual(res.target, 'gofmt');
     assert.strictEqual(res.results.length, 1);
     assert.strictEqual(res.results[0].target, 'go');
+    assert.strictEqual(executed[0].cmd, 'gofmt');
+    assert.deepStrictEqual(executed[0].args, ['-l', '.']);
   });
 });
