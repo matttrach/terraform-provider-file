@@ -138,6 +138,7 @@ terminalquotaerror
 terraformrc
 testacc
 testaccrelay
+testdata
 testracc
 textwithbellandcontrol
 textwithc
