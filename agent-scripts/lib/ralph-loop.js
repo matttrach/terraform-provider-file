@@ -1402,16 +1402,36 @@ export async function runRalphLoop(options = {}) {
   });
 
   if (requireInitialDiff && (!initialBaseline.diff || initialBaseline.diff.trim() === '')) {
-    logger('\n✅ No staged changes found to review. Ralph loop complete.');
-    return {
-      success: true,
-      completed: true,
-      iterations: 0,
-      reason: 'No staged changes found to review.',
-      finalState: initialBaseline,
-      validationResult: { success: true },
-      history: [],
-    };
+    let emptyDiffValidation = { success: true };
+    if (typeof validator === 'function') {
+      emptyDiffValidation = await validator({
+        iteration: 0,
+        maxIterations,
+        stateBefore: initialBaseline,
+        stateAfter: initialBaseline,
+        stateChanged: false,
+        repoRoot: root,
+        planPath: resolvedPlanPath,
+      });
+      if (!emptyDiffValidation?.success) {
+        logger(
+          '\n⚠️ No staged changes found to review, but deterministic workspace validation failed. Entering loop to resolve issues...',
+        );
+      }
+    }
+
+    if (emptyDiffValidation?.success) {
+      logger('\n✅ No staged changes found to review. Ralph loop complete.');
+      return {
+        success: true,
+        completed: true,
+        iterations: 0,
+        reason: 'No staged changes found to review.',
+        finalState: initialBaseline,
+        validationResult: emptyDiffValidation,
+        history: [],
+      };
+    }
   }
 
   let currentStateBefore = initialBaseline;
@@ -2228,8 +2248,9 @@ export async function runReviewRalphLoop(options = {}) {
     };
   };
 
+  const requireInitialDiff = options.requireInitialDiff !== undefined ? options.requireInitialDiff : true;
+
   return runRalphLoop({
-    requireInitialDiff: true,
     iterationRunner: reviewIterationRunner,
     validator,
     repoRoot,
@@ -2240,5 +2261,6 @@ export async function runReviewRalphLoop(options = {}) {
     maxIterations,
     maxTurnsPerSession,
     ...restOptions,
+    requireInitialDiff,
   });
 }

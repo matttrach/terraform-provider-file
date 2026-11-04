@@ -666,6 +666,7 @@ ${activePlanContent}
     const loopResult = await runReviewRalphLoop({
       repoRoot,
       planPath,
+      requireInitialDiff: selection === '6',
       proModel: models.pro,
       flashModel: models.flash,
       flashLiteModel: models.flash_lite,

@@ -331,9 +331,9 @@ Instructions & Protocols:
    - Run local validation (e.g. '${process.execPath} .gemini/skills/code-validation/scripts/test.js all' and linters) to verify your changes pass cleanly.
 3. **Reply & Resolve Threads via Skills**:
    - After successfully addressing and verifying a comment, post a concise reply explaining the resolution:
-     \`${process.execPath} .gemini/skills/github-pr/scripts/reply-comment.js ${prTargetStr} <thread_id> -m "Addressed in latest update: <brief explanation>"\`
+     \`${process.execPath} .gemini/skills/github-pr/scripts/reply-comment.js <thread_id> --pr ${prTargetStr} -m "Addressed in latest update: <brief explanation>"\`
    - Resolve the thread on GitHub:
-     \`${process.execPath} .gemini/skills/github-pr/scripts/resolve_comment.js ${prTargetStr} <thread_id>\`
+     \`${process.execPath} .gemini/skills/github-pr/scripts/resolve_comment.js <thread_id> --pr ${prTargetStr}\`
 4. **Plan Integrity**:
    - Update the checklist items in 'plans/current.md' as you complete them.
    - Do NOT wipe or overwrite 'plans/current.md'.

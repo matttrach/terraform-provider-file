@@ -658,7 +658,7 @@ test('pr-remediation - buildPRReviewImplementationPrompt', () => {
   assert.ok(prompt.includes('main.go:10'));
   assert.ok(prompt.includes('@bob'));
   assert.ok(prompt.includes('Check return value here.'));
-  assert.ok(prompt.includes('reply-comment.js'));
-  assert.ok(prompt.includes('resolve_comment.js'));
+  assert.ok(prompt.includes('reply-comment.js <thread_id> --pr 452 -m'));
+  assert.ok(prompt.includes('resolve_comment.js <thread_id> --pr 452'));
   assert.ok(prompt.includes('<active_plan>\n# Active Plan\n\nTask list.\n</active_plan>'));
 });
