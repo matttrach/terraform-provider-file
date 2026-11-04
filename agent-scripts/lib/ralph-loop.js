@@ -1414,6 +1414,7 @@ export async function runRalphLoop(options = {}) {
         planPath: resolvedPlanPath,
       });
       if (!emptyDiffValidation?.success) {
+        lastValidation = await formatValidationSpillover(emptyDiffValidation, root);
         logger(
           '\n⚠️ No staged changes found to review, but deterministic workspace validation failed. Entering loop to resolve issues...',
         );

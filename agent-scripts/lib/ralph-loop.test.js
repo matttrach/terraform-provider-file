@@ -543,7 +543,7 @@ test('runRalphLoop core lifecycle and control flow', async (t) => {
   });
 
   await t.test('does not exit early when requireInitialDiff is true but validator fails on empty diff', async () => {
-    let sessionCalled = false;
+    let capturedLastValidation = null;
     let validatorCalls = 0;
     const mockCapture = async () => ({
       diff: '',
@@ -562,16 +562,18 @@ test('runRalphLoop core lifecycle and control flow', async (t) => {
         validatorCalls++;
         return { success: false, stderr: 'Tests failed' };
       },
-      sessionRunner: async () => {
-        sessionCalled = true;
-        return 'fixed';
+      iterationRunner: async ({ lastValidation }) => {
+        capturedLastValidation = lastValidation;
+        return { shouldImplement: false, forceComplete: true };
       },
       logger: () => {},
     });
 
-    assert.strictEqual(sessionCalled, true, 'Session must be invoked to resolve validation failures');
     assert.strictEqual(result.iterations, 1);
     assert.ok(validatorCalls >= 1, 'Validator must be executed on empty diff');
+    assert.ok(capturedLastValidation, 'lastValidation must be passed to iterationRunner on iteration 1');
+    assert.strictEqual(capturedLastValidation.success, false);
+    assert.strictEqual(capturedLastValidation.stderr, 'Tests failed');
   });
 
   await t.test('converges in 1 iteration when agent makes no changes and validation passes', async () => {
