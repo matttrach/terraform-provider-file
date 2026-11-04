@@ -16,7 +16,7 @@ import { flushLogs, initializeAgentRunner, isAbortError, runAgentSession } from 
 import { stripDiffMetadata, validateMessage } from './lib/git-release.js';
 import { getPRComments } from './lib/github-context.js';
 import { runQAPipeline } from './lib/qa-runner.js';
-import { runReviewRalphLoop } from './lib/ralph-loop.js';
+import { DEFAULT_IMPLEMENTER_INSTRUCTIONS, runReviewRalphLoop } from './lib/ralph-loop.js';
 import { exists, getRepoRoot, loadAgentInstructions, savePlanFromJSON, validateAgentOutput } from './lib/utils.js';
 
 const execFileAsync = promisify(execFile);
@@ -29,7 +29,7 @@ const execFileAsync = promisify(execFile);
 async function getGitDiff(targetRepoRoot) {
   const root = targetRepoRoot || (await getRepoRoot());
   const diffScript = path.join(root, '.gemini/skills/git/scripts/get_diff_to_review.js');
-  const { stdout } = await execFileAsync('node', [diffScript, '--raw', '--head'], {
+  const { stdout } = await execFileAsync(process.execPath, [diffScript, '--raw', '--head'], {
     cwd: root,
     maxBuffer: 10 * 1024 * 1024,
     timeout: 60000,
@@ -46,18 +46,120 @@ async function getGitDiff(targetRepoRoot) {
 async function stageAndCommit(commitMessage, targetRepoRoot) {
   const root = targetRepoRoot || (await getRepoRoot());
   const stageScript = path.join(root, '.gemini/skills/git/scripts/stage-files.js');
-  await execFileAsync('node', [stageScript, '--all', '--include-untracked'], {
+  await execFileAsync(process.execPath, [stageScript, '--all', '--include-untracked'], {
     cwd: root,
     maxBuffer: 10 * 1024 * 1024,
     timeout: 60000,
   });
   const commitScript = path.join(root, '.gemini/skills/git/scripts/commit.js');
-  const { stdout, stderr } = await execFileAsync('node', [commitScript, '-m', commitMessage], {
+  const { stdout, stderr } = await execFileAsync(process.execPath, [commitScript, '-m', commitMessage], {
     cwd: root,
     maxBuffer: 10 * 1024 * 1024,
     timeout: 60000,
   });
   return { stdout, stderr };
+}
+
+/**
+ * Verifies that only test files were modified during a Test-only task.
+ * @param {string} repoRoot
+ * @returns {Promise<boolean>} True if changes are strictly within test scope boundaries, false otherwise.
+ */
+async function verifyTestScopeBoundaries(repoRoot) {
+  const modifiedFiles = new Set();
+
+  // Check if any product files were altered using get_modified_paths skill script via execFileAsync
+  try {
+    const scriptPath = path.join(repoRoot, '.gemini/skills/git/scripts/get_modified_paths.js');
+    const { stdout: modifiedPathsOutput } = await execFileAsync(process.execPath, [scriptPath], {
+      cwd: repoRoot,
+    });
+    modifiedPathsOutput
+      .split('\n')
+      .map((p) => p.trim())
+      .filter((f) => Boolean(f) && !f.startsWith('❌') && !f.startsWith('===') && !f.startsWith('⚠️'))
+      .forEach((p) => modifiedFiles.add(p));
+  } catch (err) {
+    console.error(
+      `❌ Failed closed: Could not inspect modified paths for scope boundary check: ${err?.message || err}`,
+    );
+    return false;
+  }
+
+  // Also ensure staged files in the index are captured to prevent bypassing checks via staging
+  try {
+    const stagedScriptPath = path.join(repoRoot, '.gemini/skills/git/scripts/get_staged_files.js');
+    const { stdout: stagedPathsOutput } = await execFileAsync(process.execPath, [stagedScriptPath, '--name-only'], {
+      cwd: repoRoot,
+    });
+    stagedPathsOutput
+      .split('\n')
+      .map((p) => p.trim())
+      .filter((f) => Boolean(f) && !f.startsWith('❌') && !f.startsWith('===') && !f.startsWith('⚠️'))
+      .forEach((f) => modifiedFiles.add(f));
+  } catch (err) {
+    console.error(`❌ Failed closed: Could not inspect staged files for scope boundary check: ${err?.message || err}`);
+    return false;
+  }
+
+  // Also check any branch changes relative to base branch (e.g. if changes were committed)
+  try {
+    const branchChangesScript = path.join(repoRoot, '.gemini/skills/git/scripts/get_branch_changes.js');
+    const { stdout: branchChangesOutput } = await execFileAsync(
+      process.execPath,
+      [branchChangesScript, '--name-only'],
+      {
+        cwd: repoRoot,
+      },
+    );
+    branchChangesOutput
+      .split('\n')
+      .map((p) => p.trim())
+      .filter((f) => Boolean(f) && !f.startsWith('❌') && !f.startsWith('===') && !f.startsWith('⚠️'))
+      .forEach((f) => modifiedFiles.add(f));
+  } catch (err) {
+    console.error(
+      `❌ Failed closed: Could not inspect branch changes for scope boundary check: ${err?.message || err}`,
+    );
+    return false;
+  }
+
+  const invalidChanges = Array.from(modifiedFiles).filter((f) => {
+    if (f === 'dev/null') {
+      return false;
+    }
+    const parts = f.split('/');
+    const isInTestDir = parts
+      .slice(0, -1)
+      .some(
+        (p) =>
+          p === 'test' ||
+          p === 'tests' ||
+          p === '__tests__' ||
+          p === '__snapshots__' ||
+          p === 'testdata' ||
+          p === 'mocks',
+      );
+    const isGoTest = f.endsWith('_test.go');
+    const isJsTest =
+      f.endsWith('.test.js') ||
+      f.endsWith('.spec.js') ||
+      f.endsWith('.test.mjs') ||
+      f.endsWith('.spec.mjs') ||
+      f.endsWith('.test.ts') ||
+      f.endsWith('.spec.ts');
+
+    return !isInTestDir && !isGoTest && !isJsTest;
+  });
+
+  if (invalidChanges.length > 0) {
+    console.error(
+      `❌ Safety violation: Product files were modified during a Test-only task: ${invalidChanges.join(', ')}`,
+    );
+    return false;
+  }
+
+  return true;
 }
 
 const rl = readline.createInterface({ input, output });
@@ -225,20 +327,6 @@ async function main() {
       }),
       exit_criteria: z.array(z.string()),
       implementation_tasks: z.array(z.string()),
-    });
-
-    const qaSchema = z.object({
-      approval_status: z.preprocess(
-        (val) => (typeof val === 'string' ? val.toUpperCase() : val),
-        z.enum(['APPROVED', 'UNAPPROVED', 'REJECTED']).transform((val) => (val === 'REJECTED' ? 'UNAPPROVED' : val)),
-      ),
-      findings: z.array(
-        z.object({
-          file: z.string(),
-          line_numbers: z.array(z.number()),
-          narrative: z.string(),
-        }),
-      ),
     });
 
     // ==========================================
@@ -442,7 +530,7 @@ Your final JSON response must strictly conform to this schema:
     // Check if on main or master, sync, and branch out
     try {
       const switchBranchScript = path.join(repoRoot, '.gemini/skills/git/scripts/switch-branch.js');
-      const { stdout: branchOutput } = await execFileAsync('node', [switchBranchScript, '--current'], {
+      const { stdout: branchOutput } = await execFileAsync(process.execPath, [switchBranchScript, '--current'], {
         cwd: repoRoot,
       });
       const currentBranch = branchOutput.trim();
@@ -468,7 +556,7 @@ Your final JSON response must strictly conform to this schema:
 
         // If the branch already exists, append a random ID
         try {
-          await execFileAsync('node', [switchBranchScript, '--check', newBranch], { cwd: repoRoot });
+          await execFileAsync(process.execPath, [switchBranchScript, '--check', newBranch], { cwd: repoRoot });
           const randomId = crypto.randomBytes(4).toString('hex');
           newBranch = `${newBranch}-${randomId}`;
         } catch (err) {
@@ -477,7 +565,7 @@ Your final JSON response must strictly conform to this schema:
         }
 
         const createBranchScript = path.join(repoRoot, '.gemini/skills/git/scripts/create-branch.js');
-        await execFileAsync('node', [createBranchScript, newBranch, currentBranch], { cwd: repoRoot });
+        await execFileAsync(process.execPath, [createBranchScript, newBranch, currentBranch], { cwd: repoRoot });
         console.log(`✅ Checked out new branch: ${newBranch}`);
       }
     } catch (err) {
@@ -490,26 +578,30 @@ Your final JSON response must strictly conform to this schema:
     // PHASE 2: IMPLEMENTATION (Write Access)
     // ==========================================
     console.log('\n--- 🔨 Phase 2: Implementation ---');
-    console.log('Transitioning to Implementation phase with write tools...');
 
-    // Load active plan content so the agent has direct access without wasting turns
-    const activePlanPath = planFileFound || path.join(repoRoot, 'plans/current.md');
-    let activePlanContent = '';
-    try {
-      activePlanContent = await fs.readFile(activePlanPath, 'utf8');
-    } catch (err) {
-      console.warn(`[WARN] Could not load active plan from ${activePlanPath}: ${err?.message || err}`);
-    }
+    if (selection === '6') {
+      console.log('ℹ️ Review Loop selected - skipping Phase 2 initial implementation.');
+    } else {
+      console.log('Transitioning to Implementation phase with write tools...');
 
-    let implementInstructions = `You are in the IMPLEMENTATION phase (Phase 2). 
+      // Load active plan content so the agent has direct access without wasting turns
+      const activePlanPath = planFileFound || path.join(repoRoot, 'plans/current.md');
+      let activePlanContent = '';
+      try {
+        activePlanContent = await fs.readFile(activePlanPath, 'utf8');
+      } catch (err) {
+        console.warn(`[WARN] Could not load active plan from ${activePlanPath}: ${err?.message || err}`);
+      }
+
+      let implementInstructions = `You are in the IMPLEMENTATION phase (Phase 2). 
 Implement the approved plan meticulously and surgically. The full active plan from 'plans/current.md' is already embedded below in <active_plan>. Do NOT waste turns reading it from disk.`;
 
-    if (selection === '4') {
-      // Strictly restrict the agent to test files
-      implementInstructions += `\n⚠️ STRICT CONSTRAINT: You are ONLY allowed to write or modify test files (e.g. *_test.go, *.test.js, or files under test directories). DO NOT modify any product files.`;
-    }
+      if (selection === '4') {
+        // Strictly restrict the agent to test files
+        implementInstructions += `\n⚠️ STRICT CONSTRAINT: You are ONLY allowed to write or modify test files (e.g. *_test.go, *.test.js, or files under test directories). DO NOT modify any product files.`;
+      }
 
-    const implementPrompt = `Objective: "${objective}".
+      const implementPrompt = `Objective: "${objective}".
 Please implement the approved plan documented in 'plans/current.md' meticulously and surgically.
 The full active plan from 'plans/current.md' is embedded directly below. Do NOT execute tools or commands to read 'plans/current.md' from disk.
 Once you have fully finished your implementation, stop.
@@ -518,155 +610,113 @@ Once you have fully finished your implementation, stop.
 ${activePlanContent}
 </active_plan>`;
 
-    try {
-      if (selection === '6') {
-        const planPath = planFileFound || path.join(repoRoot, 'plans/current.md');
-        console.log(
-          '\n🔄 Initiating Multi-Agent Ralph Review Loop (Thinking Reviewer -> Flash-Lite Tally -> Pro/Flash Implementer)...',
-        );
-
-        const loopResult = await runReviewRalphLoop({
-          repoRoot,
-          planPath,
-          proModel: models.pro,
-          flashModel: models.flash,
-          flashLiteModel: models.flash_lite,
-          proReviewIterations: 3,
-          proImplementationIterations: 1,
-          sessionRunner: runAgentSession,
-          validator: (args) =>
-            runQAPipeline({
-              ...args,
-              fix: false,
-              commands: [
-                'node .gemini/skills/code-validation/scripts/lint.js all',
-                'node .gemini/skills/code-validation/scripts/test.js all',
-              ],
-            }),
-          validationCommands: [
-            'node .gemini/skills/code-validation/scripts/lint.js all',
-            'node .gemini/skills/code-validation/scripts/test.js all',
-          ],
-          rl,
-          maxIterations: 15,
-          maxTurnsPerSession: 20,
-        });
-
-        if (!loopResult.completed || !loopResult.success) {
-          console.warn(`\n⚠️ Ralph Review Loop finished without full convergence: ${loopResult.reason}`);
-          process.exitCode = 1;
-          return;
-        } else {
-          console.log(`\n🟢 Ralph Review Loop completed successfully (${loopResult.iterations} iteration(s)).`);
-        }
-      } else {
+      try {
         await runAgentSession({
           initialPrompt: implementPrompt,
           systemInstructions: implementInstructions,
           requestedModel: models.pro,
           rl,
         });
+        console.log('\n✅ Implementation session completed.');
+      } catch (err) {
+        console.error(`❌ Implementation failed: ${err?.message || err}`);
+        process.exitCode = 1;
+        return;
       }
-      console.log('\n✅ Implementation session completed.');
+
+      // Programmatic verification of scope boundaries
+      if (selection === '4') {
+        const passed = await verifyTestScopeBoundaries(repoRoot);
+        if (!passed) {
+          process.exitCode = 1;
+          return;
+        }
+      }
+    }
+
+    // ==========================================
+    // PHASE 3: AUTOMATED QA REVIEW
+    // ==========================================
+    console.log('\n--- 🛡️ Phase 3: Automated QA Review ---');
+
+    // Stage changes so any new untracked or modified files from Phase 2 are included in the baseline diff
+    try {
+      const stageScript = path.join(repoRoot, '.gemini/skills/git/scripts/stage-files.js');
+      await execFileAsync(process.execPath, [stageScript, '--all', '--include-untracked'], {
+        cwd: repoRoot,
+      });
     } catch (err) {
-      console.error(`❌ Implementation failed: ${err?.message || err}`);
+      const errText = typeof err === 'string' ? err : `${err?.message || ''} ${err?.stderr || ''}`;
+      if (errText.includes('No files specified to stage') || errText.includes('No files to stage')) {
+        console.debug('[DEBUG] Working tree already clean or staged before QA review loop.');
+      } else {
+        console.error(
+          `❌ Failed closed: Could not stage files before QA review loop: ${errText.trim() || 'Unknown error'}`,
+        );
+        process.exitCode = 1;
+        return;
+      }
+    }
+
+    const planPath = planFileFound || path.join(repoRoot, 'plans/current.md');
+    console.log(
+      '\n🔄 Initiating Multi-Agent Ralph Review Loop (Thinking Reviewer -> Flash-Lite Tally -> Pro/Flash Implementer)...',
+    );
+
+    const loopResult = await runReviewRalphLoop({
+      repoRoot,
+      planPath,
+      requireInitialDiff: selection === '6',
+      proModel: models.pro,
+      flashModel: models.flash,
+      flashLiteModel: models.flash_lite,
+      proReviewIterations: 3,
+      proImplementationIterations: 1,
+      implementerInstructions:
+        selection === '4'
+          ? `${DEFAULT_IMPLEMENTER_INSTRUCTIONS}\n⚠️ STRICT CONSTRAINT: You are ONLY allowed to write or modify test files (e.g. *_test.go, *.test.js, or files under test directories). DO NOT modify any product files.`
+          : DEFAULT_IMPLEMENTER_INSTRUCTIONS,
+      sessionRunner: runAgentSession,
+      validator: (args) =>
+        runQAPipeline({
+          ...args,
+          fix: false,
+          commands: [
+            'node .gemini/skills/code-validation/scripts/lint.js all',
+            'node .gemini/skills/code-validation/scripts/test.js all',
+          ],
+        }),
+      validationCommands: [
+        'node .gemini/skills/code-validation/scripts/lint.js all',
+        'node .gemini/skills/code-validation/scripts/test.js all',
+      ],
+      rl,
+      maxIterations: 15,
+      maxTurnsPerSession: 20,
+    });
+
+    if (!loopResult.completed || !loopResult.success) {
+      console.error(`\n❌ Ralph Review Loop finished without full convergence: ${loopResult.reason}`);
       process.exitCode = 1;
       return;
     }
 
-    // Programmatic verification of scope boundaries
+    console.log(`\n🟢 Ralph Review Loop completed successfully (${loopResult.iterations} iteration(s)).`);
+
+    // For test use case, re-verify scope boundaries after review loop implementations
     if (selection === '4') {
-      const modifiedFiles = new Set();
-
-      // Check if any product files were altered using get_modified_paths skill script via execFileAsync
-      try {
-        const scriptPath = path.join(repoRoot, '.gemini/skills/git/scripts/get_modified_paths.js');
-        const { stdout: modifiedPathsOutput } = await execFileAsync('node', [scriptPath], {
-          cwd: repoRoot,
-        });
-        modifiedPathsOutput
-          .split('\n')
-          .map((p) => p.trim())
-          .filter(Boolean)
-          .forEach((p) => modifiedFiles.add(p));
-      } catch (err) {
-        console.error(
-          `❌ Failed closed: Could not inspect modified paths for scope boundary check: ${err?.message || err}`,
-        );
-        process.exitCode = 1;
-        return;
-      }
-
-      // Also ensure staged files in the index are captured to prevent bypassing checks via staging
-      try {
-        const stagedScriptPath = path.join(repoRoot, '.gemini/skills/git/scripts/get_staged_files.js');
-        const { stdout: stagedPathsOutput } = await execFileAsync('node', [stagedScriptPath, '--name-only'], {
-          cwd: repoRoot,
-        });
-        stagedPathsOutput
-          .split('\n')
-          .map((p) => p.trim())
-          .filter(Boolean)
-          .forEach((f) => modifiedFiles.add(f));
-      } catch (err) {
-        console.error(
-          `❌ Failed closed: Could not inspect staged files for scope boundary check: ${err?.message || err}`,
-        );
-        process.exitCode = 1;
-        return;
-      }
-
-      // Also check any branch changes relative to base branch (e.g. if changes were committed)
-      try {
-        const branchChangesScript = path.join(repoRoot, '.gemini/skills/git/scripts/get_branch_changes.js');
-        const { stdout: branchChangesOutput } = await execFileAsync('node', [branchChangesScript, '--name-only'], {
-          cwd: repoRoot,
-        });
-        branchChangesOutput
-          .split('\n')
-          .map((p) => p.trim())
-          .filter((f) => Boolean(f) && !f.startsWith('❌ Error:') && !f.startsWith('==='))
-          .forEach((f) => modifiedFiles.add(f));
-      } catch (err) {
-        console.error(
-          `❌ Failed closed: Could not inspect branch changes for scope boundary check: ${err?.message || err}`,
-        );
-        process.exitCode = 1;
-        return;
-      }
-
-      const invalidChanges = Array.from(modifiedFiles).filter((f) => {
-        if (f === 'dev/null') {
-          return false;
-        }
-        const parts = f.split('/');
-        const isInTestDir = parts.slice(0, -1).some((p) => p === 'test' || p === 'tests' || p === '__tests__');
-        const isGoTest = f.endsWith('_test.go');
-        const isJsTest =
-          f.endsWith('.test.js') ||
-          f.endsWith('.spec.js') ||
-          f.endsWith('.test.mjs') ||
-          f.endsWith('.spec.mjs') ||
-          f.endsWith('.test.ts') ||
-          f.endsWith('.spec.ts');
-
-        return !isInTestDir && !isGoTest && !isJsTest;
-      });
-
-      if (invalidChanges.length > 0) {
-        console.error(
-          `❌ Safety violation: Product files were modified during a Test-only task: ${invalidChanges.join(', ')}`,
-        );
+      const passed = await verifyTestScopeBoundaries(repoRoot);
+      if (!passed) {
         process.exitCode = 1;
         return;
       }
     }
 
     if (selection === '6') {
-      console.log('\n--- 📦 Phase 3: Final Review & Summary ---');
+      console.log('\n--- 📦 Final Review & Summary ---');
       try {
         await execFileAsync(
-          'node',
+          process.execPath,
           [path.join(repoRoot, '.gemini/skills/git/scripts/stage-files.js'), '--all', '--include-untracked'],
           {
             cwd: repoRoot,
@@ -710,115 +760,6 @@ ${activePlanContent}
       console.log(summaryMsg);
       console.log('======================================\n');
       console.log('✅ Review loop complete. Please review the changes, commit, and push manually.');
-      return;
-    }
-
-    // ==========================================
-    // PHASE 3: AUTOMATED QA REVIEW
-    // ==========================================
-    console.log('\n--- 🛡️ Phase 3: Automated QA Review ---');
-    let qaAttempts = 0;
-    const maxQAAttempts = 3;
-    let qaSuccess = false;
-
-    while (qaAttempts < maxQAAttempts && !qaSuccess) {
-      qaAttempts++;
-      console.log(`\nRunning automated QA pipeline (Attempt ${qaAttempts}/${maxQAAttempts})...`);
-
-      const buildResult = await runQAPipeline();
-      if (!buildResult.success) {
-        console.error('❌ Tests or linters failed. Initiating self-healing...');
-        const truncateLog = (str) =>
-          typeof str === 'string' && str.length > 10000 ? '... [truncated]\n' + str.slice(-10000) : str;
-        const healPrompt = `The automated workspace testing or linting pipeline failed with the following errors/findings:
-      
-Stdout:
-${truncateLog(buildResult.stdout)}
-
-Stderr:
-${truncateLog(buildResult.stderr)}
-
-Please analyze these errors and fix the code surgically.`;
-
-        await runAgentSession({
-          initialPrompt: healPrompt,
-          systemInstructions:
-            'You are a QA/Self-Healing assistant. Resolve the test/linter failures reported by the QA pipeline.',
-          requestedModel: models.flash,
-          blockTools: ['run_shell_command'],
-          rl,
-        });
-        continue;
-      }
-
-      console.log('🟢 All tests and linters passed! Invoking QA Agent for safety review...');
-
-      const qaConfig = await loadAgentInstructions('quality_assurance');
-      const diffText = await getGitDiff();
-      const planPath = planFileFound || path.join(repoRoot, 'plans/current.md');
-      let activePlan = '';
-      if (await exists(planPath)) {
-        activePlan = await fs.readFile(planPath, 'utf8');
-      }
-      if (!activePlan && objective) {
-        activePlan = `Objective: ${objective}`;
-      }
-
-      const qaPrompt = `Please review the proposed changes for code quality, strict adherence to the project conventions, and security. Output a strict JSON object with 'approval_status': 'APPROVED' | 'UNAPPROVED' and a 'findings' array detailing any issues, or an empty array if approved.
-
-<active_plan>
-${activePlan}
-</active_plan>
-
-<git_diff>
-${diffText}
-</git_diff>`;
-
-      try {
-        const qaResultText = await runAgentSession({
-          initialPrompt: qaPrompt,
-          systemInstructions: qaConfig.instructions || 'You are a strict QA Review Agent. Output JSON.',
-          requestedModel: qaConfig.model || models.flash,
-          requireTopic: false,
-          isolate: true,
-          rl,
-        });
-
-        const qaReportObj = await validateAgentOutput(qaResultText, qaSchema, qaConfig?.model || models?.flash);
-        if (!qaReportObj) {
-          console.error('❌ Failed to parse QA Agent JSON report.');
-          continue;
-        }
-
-        const isApproved =
-          qaReportObj.approval_status === 'APPROVED' &&
-          Array.isArray(qaReportObj.findings) &&
-          qaReportObj.findings.length === 0;
-
-        if (isApproved) {
-          console.log('🟢 QA Agent approved the changes!');
-          qaSuccess = true;
-        } else {
-          console.error('❌ QA Agent found issues:', JSON.stringify(qaReportObj.findings, null, 2));
-          const healPrompt = `The QA Agent rejected the changes with these findings:\n${JSON.stringify(qaReportObj.findings, null, 2)}\nPlease analyze and fix the code surgically.`;
-
-          await runAgentSession({
-            initialPrompt: healPrompt,
-            systemInstructions: 'You are a QA/Self-Healing assistant. Resolve the issues reported by QA.',
-            requestedModel: models.flash,
-            blockTools: ['run_shell_command'],
-            rl,
-          });
-        }
-      } catch (err) {
-        console.error(`❌ QA Agent execution failed: ${err?.message || err}`);
-        continue;
-      }
-    }
-
-    if (!qaSuccess) {
-      console.error('❌ Error: Automated QA Review failed after maximum retry attempts. Exiting.');
-      process.exitCode = 1;
       return;
     }
 

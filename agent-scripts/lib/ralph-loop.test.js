@@ -542,6 +542,40 @@ test('runRalphLoop core lifecycle and control flow', async (t) => {
     assert.strictEqual(result.reason, 'No staged changes found to review.');
   });
 
+  await t.test('does not exit early when requireInitialDiff is true but validator fails on empty diff', async () => {
+    let capturedLastValidation = null;
+    let validatorCalls = 0;
+    const mockCapture = async () => ({
+      diff: '',
+      status: '',
+      diffHash: 'empty-hash',
+      plan: '',
+      changedFiles: [],
+      modifiedFilesContext: '',
+    });
+
+    const result = await runRalphLoop({
+      requireInitialDiff: true,
+      maxIterations: 1,
+      captureState: mockCapture,
+      validator: async () => {
+        validatorCalls++;
+        return { success: false, stderr: 'Tests failed' };
+      },
+      iterationRunner: async ({ lastValidation }) => {
+        capturedLastValidation = lastValidation;
+        return { shouldImplement: false, forceComplete: true };
+      },
+      logger: () => {},
+    });
+
+    assert.strictEqual(result.iterations, 1);
+    assert.ok(validatorCalls >= 1, 'Validator must be executed on empty diff');
+    assert.ok(capturedLastValidation, 'lastValidation must be passed to iterationRunner on iteration 1');
+    assert.strictEqual(capturedLastValidation.success, false);
+    assert.strictEqual(capturedLastValidation.stderr, 'Tests failed');
+  });
+
   await t.test('converges in 1 iteration when agent makes no changes and validation passes', async () => {
     let sessionCount = 0;
     let validatorCount = 0;
@@ -2758,12 +2792,42 @@ Validate nil pointer before lookup.
       },
       logger: () => {},
     });
-
     assert.strictEqual(innerAttempts, 2);
     assert.strictEqual(
       secondAttemptStateChanged,
       false,
       'Second attempt made no edits beyond attempt 1, so stateChanged must be false',
+    );
+  });
+
+  await t.test('runImplementationRalphLoop respects custom implementerInstructions option', async () => {
+    let capturedPrompt = '';
+    const mockCapture = async () => ({
+      diff: 'staged diff',
+      status: 'M test_file_test.go',
+      diffHash: 'diff-hash-1',
+      plan: '## Active Plan',
+      changedFiles: ['test_file_test.go'],
+      modifiedFilesContext: '<file path="test_file_test.go">content</file>',
+    });
+
+    await runImplementationRalphLoop({
+      suggestions: [{ id: 1, severity: 'minor', text: 'Task 1' }],
+      maxIterations: 1,
+      implementerInstructions: 'CUSTOM_TEST_ONLY_CONSTRAINT: Modify only test files.',
+      captureState: mockCapture,
+      detectChange: () => ({ hasChanged: true }),
+      sessionRunner: async ({ initialPrompt }) => {
+        capturedPrompt = initialPrompt;
+        return '<completed_suggestion id="1">Fixed</completed_suggestion>';
+      },
+      validator: async () => ({ success: true }),
+      logger: () => {},
+    });
+
+    assert.ok(
+      capturedPrompt.includes('CUSTOM_TEST_ONLY_CONSTRAINT: Modify only test files.'),
+      'Custom implementer instructions must be prepended to the initialPrompt',
     );
   });
 

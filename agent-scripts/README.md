@@ -12,7 +12,7 @@ Instead of reactive, fragile hook interceptions, our development lifecycle is st
 
 1. **Phase 1: Planning (Read-Only)**: The orchestrator restricts the model to read-only actions and generates a plan. The orchestrator pauses and requests explicit developer approval via terminal `readline` before any edits are allowed.
 2. **Phase 2: Implementation (Write Access)**: Once approved, the orchestrator initiates the implementation session, enabling the agent to surgically edit code and run local tests.
-3. **Phase 3: Automated QA Review (Self-Healing)**: The orchestrator runs local tests and linters, and then invokes a virtual QA Agent session (configured via `.gemini/agents/quality_assurance.toml`) to perform a code-quality and safety review. Any issues are fed back to the implementation agent for automatic correction.
+3. **Phase 3: Automated QA Review Loop**: The orchestrator executes the multi-agent Ralph Review Loop across all workflows. A thinking reviewer evaluates staged code and active plan constraints, a counting model tallies issue severity, and an inner implementation loop surgically resolves critical and medium findings while enforcing test and linter validation backpressure until clean convergence.
 4. **Phase 4: Final User Review & Commit**: The orchestrator shows the unified git diff to the developer in the terminal, asks for confirmation, and creates a signed commit.
 
 ---

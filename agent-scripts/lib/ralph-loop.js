@@ -1402,16 +1402,37 @@ export async function runRalphLoop(options = {}) {
   });
 
   if (requireInitialDiff && (!initialBaseline.diff || initialBaseline.diff.trim() === '')) {
-    logger('\n✅ No staged changes found to review. Ralph loop complete.');
-    return {
-      success: true,
-      completed: true,
-      iterations: 0,
-      reason: 'No staged changes found to review.',
-      finalState: initialBaseline,
-      validationResult: { success: true },
-      history: [],
-    };
+    let emptyDiffValidation = { success: true };
+    if (typeof validator === 'function') {
+      emptyDiffValidation = await validator({
+        iteration: 0,
+        maxIterations,
+        stateBefore: initialBaseline,
+        stateAfter: initialBaseline,
+        stateChanged: false,
+        repoRoot: root,
+        planPath: resolvedPlanPath,
+      });
+      if (!emptyDiffValidation?.success) {
+        lastValidation = await formatValidationSpillover(emptyDiffValidation, root);
+        logger(
+          '\n⚠️ No staged changes found to review, but deterministic workspace validation failed. Entering loop to resolve issues...',
+        );
+      }
+    }
+
+    if (emptyDiffValidation?.success) {
+      logger('\n✅ No staged changes found to review. Ralph loop complete.');
+      return {
+        success: true,
+        completed: true,
+        iterations: 0,
+        reason: 'No staged changes found to review.',
+        finalState: initialBaseline,
+        validationResult: emptyDiffValidation,
+        history: [],
+      };
+    }
   }
 
   let currentStateBefore = initialBaseline;
@@ -1805,6 +1826,7 @@ export async function runImplementationRalphLoop(options = {}) {
     maxIterations = 15,
     customTools = [],
     blockTools = ['invoke_agent', 'enter_plan_mode'],
+    implementerInstructions = DEFAULT_IMPLEMENTER_INSTRUCTIONS,
   } = options;
 
   const logger = typeof inputLogger === 'function' ? inputLogger : console.log;
@@ -1889,7 +1911,7 @@ export async function runImplementationRalphLoop(options = {}) {
       skillsContext,
     });
 
-    const instructions = DEFAULT_IMPLEMENTER_INSTRUCTIONS;
+    const instructions = implementerInstructions;
 
     let agentOutput;
     let sessionError = null;
@@ -2209,6 +2231,7 @@ export async function runReviewRalphLoop(options = {}) {
       maxIterations: Math.max(15, tally.total * 3),
       customTools: restOptions.customTools || customTools,
       blockTools: restOptions.blockTools || ['invoke_agent', 'enter_plan_mode'],
+      implementerInstructions: restOptions.implementerInstructions || DEFAULT_IMPLEMENTER_INSTRUCTIONS,
     });
 
     const isSuccess = Boolean(innerResult?.success);
@@ -2226,8 +2249,9 @@ export async function runReviewRalphLoop(options = {}) {
     };
   };
 
+  const requireInitialDiff = options.requireInitialDiff !== undefined ? options.requireInitialDiff : true;
+
   return runRalphLoop({
-    requireInitialDiff: true,
     iterationRunner: reviewIterationRunner,
     validator,
     repoRoot,
@@ -2238,5 +2262,6 @@ export async function runReviewRalphLoop(options = {}) {
     maxIterations,
     maxTurnsPerSession,
     ...restOptions,
+    requireInitialDiff,
   });
 }

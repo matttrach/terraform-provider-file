@@ -1484,6 +1484,29 @@ test('github-pr skill - parseReplyArgs unit tests', async (t) => {
     });
   });
 
+  await t.test('parses -p and --pr flags unambiguously in parseReplyArgs', () => {
+    const res1 = parseReplyArgs(['123', '--pr', '448', '-m', 'Reply body']);
+    assert.deepStrictEqual(res1, {
+      prNumber: 448,
+      commentId: 123,
+      body: 'Reply body',
+    });
+
+    const res2 = parseReplyArgs(['50', '-p', '1000', '-m', 'Small comment on large PR']);
+    assert.deepStrictEqual(res2, {
+      prNumber: 1000,
+      commentId: 50,
+      body: 'Small comment on large PR',
+    });
+
+    const res3 = parseReplyArgs(['PRRT_abc', '--pr', 'current', '-m', 'Thread reply']);
+    assert.deepStrictEqual(res3, {
+      prNumber: undefined,
+      commentId: 'PRRT_abc',
+      body: 'Thread reply',
+    });
+  });
+
   await t.test('returns empty object for fewer than 2 arguments', () => {
     assert.deepStrictEqual(parseReplyArgs([]), {});
     assert.deepStrictEqual(parseReplyArgs(['123']), {});
@@ -1599,6 +1622,24 @@ test('github-pr skill - parseResolveArgs unit tests', async (t) => {
       prNumber: 448,
       prTarget: '448',
       unresolve: false,
+    });
+  });
+
+  await t.test('parses -p and --pr flags unambiguously in parseResolveArgs', () => {
+    const res1 = parseResolveArgs(['50', '--pr', '1000']);
+    assert.deepStrictEqual(res1, {
+      threadId: '50',
+      prNumber: 1000,
+      prTarget: '1000',
+      unresolve: false,
+    });
+
+    const res2 = parseResolveArgs(['PRRT_abc', '-p', '448', '--unresolve']);
+    assert.deepStrictEqual(res2, {
+      threadId: 'PRRT_abc',
+      prNumber: 448,
+      prTarget: '448',
+      unresolve: true,
     });
   });
 });
