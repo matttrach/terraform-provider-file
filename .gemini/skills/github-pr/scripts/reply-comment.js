@@ -151,6 +151,15 @@ export function parseReplyArgs(args) {
 
   let cleanArgs = [...args];
   let explicitBody = null;
+
+  const prIndex = cleanArgs.findIndex((a) => a === '-p' || a === '--pr');
+  if (prIndex !== -1 && prIndex + 1 < cleanArgs.length) {
+    const rawPr = cleanArgs[prIndex + 1];
+    prTarget = rawPr;
+    prNumber = isNum(rawPr) ? toNum(rawPr) : undefined;
+    cleanArgs.splice(prIndex, 2);
+  }
+
   const mIndex = cleanArgs.findIndex((a) => a === '-m' || a === '--body');
   if (mIndex !== -1 && mIndex + 1 < cleanArgs.length) {
     explicitBody = cleanArgs.slice(mIndex + 1).join(' ');
@@ -206,40 +215,40 @@ export function parseReplyArgs(args) {
     return res;
   }
 
-  if (args.length === 2) {
-    if (isRef(args[0])) {
-      commentId = toRef(args[0]);
-      body = args[1];
+  if (cleanArgs.length === 2) {
+    if (isRef(cleanArgs[0])) {
+      commentId = toRef(cleanArgs[0]);
+      body = cleanArgs[1];
     }
-  } else if (args.length >= 3) {
-    const arg0 = args[0];
-    const arg1 = args[1];
-    const lastArg = args[args.length - 1];
+  } else if (cleanArgs.length >= 3) {
+    const arg0 = cleanArgs[0];
+    const arg1 = cleanArgs[1];
+    const lastArg = cleanArgs[cleanArgs.length - 1];
 
     if (String(arg0).startsWith('PRRT_') && (isNum(arg1) || arg1 === 'current')) {
       commentId = String(arg0).trim();
       prNumber = arg1 === 'current' ? undefined : toNum(arg1);
-      body = args.slice(2).join(' ');
+      body = cleanArgs.slice(2).join(' ');
     } else if (String(arg1).startsWith('PRRT_') && (isNum(arg0) || arg0 === 'current')) {
       commentId = String(arg1).trim();
       prNumber = arg0 === 'current' ? undefined : toNum(arg0);
-      body = args.slice(2).join(' ');
+      body = cleanArgs.slice(2).join(' ');
     } else if (isRef(arg0) && arg1 === 'current') {
       commentId = toRef(arg0);
       prNumber = undefined;
-      body = args.slice(2).join(' ');
+      body = cleanArgs.slice(2).join(' ');
     } else if (arg0 === 'current' && isRef(arg1)) {
       commentId = toRef(arg1);
       prNumber = undefined;
-      body = args.slice(2).join(' ');
+      body = cleanArgs.slice(2).join(' ');
     } else if (isRef(arg0) && String(arg1).startsWith('#') && !String(arg0).startsWith('#')) {
       commentId = toRef(arg0);
       prNumber = toNum(arg1);
-      body = args.slice(2).join(' ');
+      body = cleanArgs.slice(2).join(' ');
     } else if (String(arg0).startsWith('#') && !String(arg1).startsWith('#') && isRef(arg1)) {
       prNumber = toNum(arg0);
       commentId = toRef(arg1);
-      body = args.slice(2).join(' ');
+      body = cleanArgs.slice(2).join(' ');
     } else if (isNum(arg0) && isNum(arg1)) {
       const n0 = toNum(arg0);
       const n1 = toNum(arg1);
@@ -256,19 +265,19 @@ export function parseReplyArgs(args) {
         prNumber = n0;
         commentId = n1;
       }
-      body = args.slice(2).join(' ');
+      body = cleanArgs.slice(2).join(' ');
     } else if (!isRef(arg0) && isRef(arg1)) {
       prTarget = arg0;
       commentId = toRef(arg1);
       prNumber = isNum(arg0) ? toNum(arg0) : undefined;
-      body = args.slice(2).join(' ');
+      body = cleanArgs.slice(2).join(' ');
     } else if (isRef(arg0) && (isNum(lastArg) || lastArg === 'current')) {
       commentId = toRef(arg0);
-      body = args.slice(1, -1).join(' ');
+      body = cleanArgs.slice(1, -1).join(' ');
       prNumber = lastArg === 'current' ? undefined : toNum(lastArg);
     } else if (isRef(arg0)) {
       commentId = toRef(arg0);
-      body = args.slice(1).join(' ');
+      body = cleanArgs.slice(1).join(' ');
     }
   }
 
@@ -293,6 +302,7 @@ Arguments:
   pr_number_or_current         PR number, URL, or 'current' (default: 'current')
 
 Options:
+  -p, --pr <pr_target>         Target PR number, URL, or 'current' (unambiguous)
   -m, --body <text>            Specify reply body explicitly
   -h, --help                   Show this help message
 

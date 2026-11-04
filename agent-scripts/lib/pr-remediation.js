@@ -246,7 +246,7 @@ export async function replyToPRReviewThread({ prTarget = 'current', threadId, re
   const target = prTarget || 'current';
   const root = repoRoot || (await getRepoRoot());
   const scriptPath = path.join(root, '.gemini/skills/github-pr/scripts/reply-comment.js');
-  const args = [scriptPath, String(target), String(threadId), '-m', replyMessage.trim()];
+  const args = [scriptPath, String(threadId), '--pr', String(target), '-m', replyMessage.trim()];
 
   try {
     const { stdout, stderr } = await sys.execFileAsync(process.execPath, args, {
@@ -278,7 +278,7 @@ export async function resolvePRReviewThread({ prTarget = 'current', threadId, re
   const target = prTarget || 'current';
   const root = repoRoot || (await getRepoRoot());
   const scriptPath = path.join(root, '.gemini/skills/github-pr/scripts/resolve_comment.js');
-  const args = [scriptPath, String(target), String(threadId)];
+  const args = [scriptPath, String(threadId), '--pr', String(target)];
 
   try {
     const { stdout, stderr } = await sys.execFileAsync(process.execPath, args, {

@@ -1805,6 +1805,7 @@ export async function runImplementationRalphLoop(options = {}) {
     maxIterations = 15,
     customTools = [],
     blockTools = ['invoke_agent', 'enter_plan_mode'],
+    implementerInstructions = DEFAULT_IMPLEMENTER_INSTRUCTIONS,
   } = options;
 
   const logger = typeof inputLogger === 'function' ? inputLogger : console.log;
@@ -1889,7 +1890,7 @@ export async function runImplementationRalphLoop(options = {}) {
       skillsContext,
     });
 
-    const instructions = DEFAULT_IMPLEMENTER_INSTRUCTIONS;
+    const instructions = implementerInstructions;
 
     let agentOutput;
     let sessionError = null;
@@ -2209,6 +2210,7 @@ export async function runReviewRalphLoop(options = {}) {
       maxIterations: Math.max(15, tally.total * 3),
       customTools: restOptions.customTools || customTools,
       blockTools: restOptions.blockTools || ['invoke_agent', 'enter_plan_mode'],
+      implementerInstructions: restOptions.implementerInstructions || DEFAULT_IMPLEMENTER_INSTRUCTIONS,
     });
 
     const isSuccess = Boolean(innerResult?.success);

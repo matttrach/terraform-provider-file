@@ -108,11 +108,7 @@ export function parseResolveArgs(args = []) {
     return { unresolve: false };
   }
   const unresolve = args.includes('--unresolve');
-  const cleanArgs = args.filter((a) => a !== '--unresolve');
-
-  if (cleanArgs.length === 0) {
-    return { unresolve };
-  }
+  let cleanArgs = args.filter((a) => a !== '--unresolve');
 
   const isUrl = (v) => /\/pull\/(\d+)/.test(String(v || ''));
   const isNum = (v) => /^#?\d+$/.test(String(v || '').trim()) || isUrl(v);
@@ -123,6 +119,30 @@ export function parseResolveArgs(args = []) {
     return parseInt(s.replace(/^#/, ''), 10);
   };
   const isRef = (v) => isNum(v) || String(v || '').startsWith('PRRT_');
+
+  let prNumber;
+  let prTarget;
+
+  const prIndex = cleanArgs.findIndex((a) => a === '-p' || a === '--pr');
+  if (prIndex !== -1 && prIndex + 1 < cleanArgs.length) {
+    const rawPr = cleanArgs[prIndex + 1];
+    prTarget = rawPr;
+    prNumber = isNum(rawPr) ? toNum(rawPr) : undefined;
+    cleanArgs.splice(prIndex, 2);
+  }
+
+  if (prTarget !== undefined) {
+    return {
+      threadId: cleanArgs[0],
+      prNumber,
+      prTarget: prTarget || 'current',
+      unresolve,
+    };
+  }
+
+  if (cleanArgs.length === 0) {
+    return { unresolve };
+  }
 
   const arg1 = cleanArgs[0];
   const arg2 = cleanArgs[1];
@@ -215,6 +235,7 @@ Arguments:
   pr_number                    PR number or URL (required when resolving by numeric comment ID)
 
 Options:
+  -p, --pr <pr_target>         Target PR number, URL, or 'current' (unambiguous)
   --unresolve                  Unresolve the review thread instead of resolving it
   -h, --help                   Show this help message
 

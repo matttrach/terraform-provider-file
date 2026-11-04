@@ -16,7 +16,7 @@ import { flushLogs, initializeAgentRunner, isAbortError, runAgentSession } from 
 import { stripDiffMetadata, validateMessage } from './lib/git-release.js';
 import { getPRComments } from './lib/github-context.js';
 import { runQAPipeline } from './lib/qa-runner.js';
-import { runReviewRalphLoop } from './lib/ralph-loop.js';
+import { DEFAULT_IMPLEMENTER_INSTRUCTIONS, runReviewRalphLoop } from './lib/ralph-loop.js';
 import { exists, getRepoRoot, loadAgentInstructions, savePlanFromJSON, validateAgentOutput } from './lib/utils.js';
 
 const execFileAsync = promisify(execFile);
@@ -671,19 +671,23 @@ ${activePlanContent}
       flashLiteModel: models.flash_lite,
       proReviewIterations: 3,
       proImplementationIterations: 1,
+      implementerInstructions:
+        selection === '4'
+          ? `${DEFAULT_IMPLEMENTER_INSTRUCTIONS}\n⚠️ STRICT CONSTRAINT: You are ONLY allowed to write or modify test files (e.g. *_test.go, *.test.js, or files under test directories). DO NOT modify any product files.`
+          : DEFAULT_IMPLEMENTER_INSTRUCTIONS,
       sessionRunner: runAgentSession,
       validator: (args) =>
         runQAPipeline({
           ...args,
           fix: false,
           commands: [
-            `${process.execPath} .gemini/skills/code-validation/scripts/lint.js all`,
-            `${process.execPath} .gemini/skills/code-validation/scripts/test.js all`,
+            'node .gemini/skills/code-validation/scripts/lint.js all',
+            'node .gemini/skills/code-validation/scripts/test.js all',
           ],
         }),
       validationCommands: [
-        `${process.execPath} .gemini/skills/code-validation/scripts/lint.js all`,
-        `${process.execPath} .gemini/skills/code-validation/scripts/test.js all`,
+        'node .gemini/skills/code-validation/scripts/lint.js all',
+        'node .gemini/skills/code-validation/scripts/test.js all',
       ],
       rl,
       maxIterations: 15,

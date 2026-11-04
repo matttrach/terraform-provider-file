@@ -401,10 +401,33 @@ test('pr-remediation - replyToPRReviewThread', async (t) => {
 
     assert.strictEqual(res.success, true);
     assert.ok(capturedArgs[0].endsWith('reply-comment.js'));
-    assert.strictEqual(capturedArgs[1], '452');
-    assert.strictEqual(capturedArgs[2], 'PRRT_123');
-    assert.strictEqual(capturedArgs[3], '-m');
-    assert.strictEqual(capturedArgs[4], 'Fixed in commit abc1234');
+    assert.strictEqual(capturedArgs[1], 'PRRT_123');
+    assert.strictEqual(capturedArgs[2], '--pr');
+    assert.strictEqual(capturedArgs[3], '452');
+    assert.strictEqual(capturedArgs[4], '-m');
+    assert.strictEqual(capturedArgs[5], 'Fixed in commit abc1234');
+  });
+
+  await t.test('handles numeric threadId and prTarget without ambiguity', async () => {
+    let capturedArgs = null;
+    t.mock.method(sys, 'execFileAsync', async (cmd, args) => {
+      capturedArgs = args;
+      return { stdout: 'Reply posted', stderr: '' };
+    });
+
+    const res = await replyToPRReviewThread({
+      prTarget: 1000,
+      threadId: 50,
+      replyMessage: 'Fixed numeric ID',
+      repoRoot: '/mock/repo',
+    });
+
+    assert.strictEqual(res.success, true);
+    assert.strictEqual(capturedArgs[1], '50');
+    assert.strictEqual(capturedArgs[2], '--pr');
+    assert.strictEqual(capturedArgs[3], '1000');
+    assert.strictEqual(capturedArgs[4], '-m');
+    assert.strictEqual(capturedArgs[5], 'Fixed numeric ID');
   });
 
   await t.test('falls back to "current" when prTarget is null', async () => {
@@ -422,7 +445,9 @@ test('pr-remediation - replyToPRReviewThread', async (t) => {
     });
 
     assert.strictEqual(res.success, true);
-    assert.strictEqual(capturedArgs[1], 'current');
+    assert.strictEqual(capturedArgs[1], 'PRRT_123');
+    assert.strictEqual(capturedArgs[2], '--pr');
+    assert.strictEqual(capturedArgs[3], 'current');
   });
 
   await t.test('propagates error when child process fails', async () => {
@@ -510,8 +535,28 @@ test('pr-remediation - resolvePRReviewThread', async (t) => {
 
     assert.strictEqual(res.success, true);
     assert.ok(capturedArgs[0].endsWith('resolve_comment.js'));
-    assert.strictEqual(capturedArgs[1], 'current');
-    assert.strictEqual(capturedArgs[2], 'PRRT_999');
+    assert.strictEqual(capturedArgs[1], 'PRRT_999');
+    assert.strictEqual(capturedArgs[2], '--pr');
+    assert.strictEqual(capturedArgs[3], 'current');
+  });
+
+  await t.test('handles numeric threadId and prTarget without ambiguity in resolvePRReviewThread', async () => {
+    let capturedArgs = null;
+    t.mock.method(sys, 'execFileAsync', async (cmd, args) => {
+      capturedArgs = args;
+      return { stdout: 'Thread resolved', stderr: '' };
+    });
+
+    const res = await resolvePRReviewThread({
+      prTarget: 1000,
+      threadId: 50,
+      repoRoot: '/mock/repo',
+    });
+
+    assert.strictEqual(res.success, true);
+    assert.strictEqual(capturedArgs[1], '50');
+    assert.strictEqual(capturedArgs[2], '--pr');
+    assert.strictEqual(capturedArgs[3], '1000');
   });
 
   await t.test('falls back to "current" when prTarget is null', async () => {
@@ -528,7 +573,9 @@ test('pr-remediation - resolvePRReviewThread', async (t) => {
     });
 
     assert.strictEqual(res.success, true);
-    assert.strictEqual(capturedArgs[1], 'current');
+    assert.strictEqual(capturedArgs[1], 'PRRT_999');
+    assert.strictEqual(capturedArgs[2], '--pr');
+    assert.strictEqual(capturedArgs[3], 'current');
   });
 
   await t.test('propagates error when child process fails', async () => {

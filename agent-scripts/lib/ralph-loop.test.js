@@ -2758,12 +2758,42 @@ Validate nil pointer before lookup.
       },
       logger: () => {},
     });
-
     assert.strictEqual(innerAttempts, 2);
     assert.strictEqual(
       secondAttemptStateChanged,
       false,
       'Second attempt made no edits beyond attempt 1, so stateChanged must be false',
+    );
+  });
+
+  await t.test('runImplementationRalphLoop respects custom implementerInstructions option', async () => {
+    let capturedPrompt = '';
+    const mockCapture = async () => ({
+      diff: 'staged diff',
+      status: 'M test_file_test.go',
+      diffHash: 'diff-hash-1',
+      plan: '## Active Plan',
+      changedFiles: ['test_file_test.go'],
+      modifiedFilesContext: '<file path="test_file_test.go">content</file>',
+    });
+
+    await runImplementationRalphLoop({
+      suggestions: [{ id: 1, severity: 'minor', text: 'Task 1' }],
+      maxIterations: 1,
+      implementerInstructions: 'CUSTOM_TEST_ONLY_CONSTRAINT: Modify only test files.',
+      captureState: mockCapture,
+      detectChange: () => ({ hasChanged: true }),
+      sessionRunner: async ({ initialPrompt }) => {
+        capturedPrompt = initialPrompt;
+        return '<completed_suggestion id="1">Fixed</completed_suggestion>';
+      },
+      validator: async () => ({ success: true }),
+      logger: () => {},
+    });
+
+    assert.ok(
+      capturedPrompt.includes('CUSTOM_TEST_ONLY_CONSTRAINT: Modify only test files.'),
+      'Custom implementer instructions must be prepended to the initialPrompt',
     );
   });
 
