@@ -1,7 +1,7 @@
 import { exec, execFile } from 'node:child_process';
 import path from 'node:path';
 import { promisify } from 'node:util';
-import { fileAffectsProduct, validateCommitTitle } from '../../skills/git/scripts/commit.js';
+import { fileAffectsProduct, getProductRoots, validateCommitTitle } from '../../skills/git/scripts/commit.js';
 
 const execAsync = promisify(exec);
 const execFileAsync = promisify(execFile);
@@ -27,7 +27,8 @@ export async function affectsProductFiles() {
     .split('\n')
     .map((f) => f.trim())
     .filter(Boolean);
-  return changedFiles.some((f) => fileAffectsProduct(f));
+  const roots = await getProductRoots();
+  return changedFiles.some((f) => fileAffectsProduct(f, roots));
 }
 
 /**

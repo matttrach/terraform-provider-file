@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { fileExists, getRepoRoot, runCommand } from './utils.js';
+import { getRepoRoot, runCommand } from './utils.js';
 
 export const SUPPORTED_MODES = [
   'all',
@@ -138,19 +138,13 @@ export async function runLint({
     case 'golangci-lint':
       result = await commandRunner('golangci-lint', fix ? ['run', '--fix'] : ['run'], { cwd: workingDir, stdio });
       break;
-    case 'eslint': {
-      const lintScriptPath = path.join(repoRoot, '.github/workflows/scripts/lint.sh');
-      if (await fileExists(lintScriptPath)) {
-        result = await commandRunner('bash', [lintScriptPath, 'eslint'], { cwd: workingDir, stdio });
-      } else {
-        result = await commandRunner(
-          'npx',
-          ['eslint', '.github/workflows/scripts/', '.gemini/hooks/', '.gemini/orchestrator/'],
-          { cwd: workingDir, stdio },
-        );
-      }
+    case 'eslint':
+      result = await commandRunner(
+        'npx',
+        ['eslint', '.github/workflows/scripts/', '.gemini/hooks/', '.gemini/orchestrator/'],
+        { cwd: workingDir, stdio },
+      );
       break;
-    }
     case 'prettier':
       result = await commandRunner('prettier', fix ? ['--write', '.'] : ['--check', '.'], { cwd: workingDir, stdio });
       break;
@@ -172,19 +166,9 @@ export async function runLint({
     case 'terraform':
       result = await commandRunner('terraform', ['fmt', fix ? '.' : '-check'], { cwd: workingDir, stdio });
       break;
-    default: {
-      const lintScriptPath = path.join(repoRoot, '.github/workflows/scripts/lint.sh');
-      if (await fileExists(lintScriptPath)) {
-        const scriptArgs = [mode];
-        if (fix) {
-          scriptArgs.push('--fix');
-        }
-        result = await commandRunner('bash', [lintScriptPath, ...scriptArgs], { cwd: workingDir, stdio });
-      } else {
-        result = await commandRunner('make', ['lint'], { cwd: workingDir, stdio });
-      }
+    default:
+      result = await commandRunner('make', [mode === 'all' ? 'lint' : `lint-${mode}`], { cwd: workingDir, stdio });
       break;
-    }
   }
 
   return {

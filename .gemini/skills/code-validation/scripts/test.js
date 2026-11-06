@@ -8,10 +8,10 @@ export const SUPPORTED_MODES = ['unit', 'compile', 'acc', 'acc-relay', 'workflow
 
 export const MODE_TO_MAKE_TARGET = {
   unit: 'unit',
-  compile: 'build',
+  compile: 'compile',
   acc: 'acc',
   'acc-relay': 'testaccrelay',
-  all: 'test',
+  all: 'test-all',
 };
 
 /**

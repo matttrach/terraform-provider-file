@@ -5,14 +5,27 @@ default: fmt lint build install generate test testacc
 fmt:
 	gofmt -s -w -e .
 
-lint:
+lint: lint-go lint-scripts lint-format
+
+lint-go:
 	golangci-lint run
+
+lint-scripts:
+	npx eslint .github/workflows/scripts/ .gemini/hooks/ .gemini/orchestrator/
+
+lint-format:
+	prettier --check .
 
 build:
 	go build -o ./bin/ -v ./...
 
 buildrace:
 	go build -race -o ./bin/ -v ./...
+
+testcompile:
+	@pushd ./test > /dev/null; go test -c -o /dev/null ./...; popd > /dev/null;
+
+compile: build testcompile
 
 generate:
 	cd tools; go generate ./...
@@ -57,4 +70,9 @@ unit: test
 
 acc: testacc
 
-.PHONY: fmt lint build install generate test testacc testaccrelay debug unit acc
+test-scripts:
+	node --test ".github/workflows/scripts/tests/**/*.test.js" ".gemini/orchestrator/lib/**/*.test.js" ".gemini/hooks/**/*.test.js" ".gemini/skills/**/tests/**/*.test.js"
+
+test-all: test test-scripts
+
+.PHONY: fmt lint lint-go lint-scripts lint-format build buildrace compile testcompile install generate test testacc testaccrelay debug unit acc test-scripts test-all
