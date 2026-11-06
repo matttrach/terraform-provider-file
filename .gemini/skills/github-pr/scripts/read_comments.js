@@ -238,7 +238,7 @@ async function main() {
     if (err.status === 404) {
       console.error(
         `💡 Tip: Verify that PR ${targetDesc} exists in ${owner}/${repo}. ` +
-          `If working from a fork, set an 'upstream' git remote or export GH_REPO="rancher/terraform-provider-file".`,
+          `If working from a fork, set an 'upstream' git remote or export GH_REPO="${owner}/${repo}".`,
       );
     }
     process.exit(1);

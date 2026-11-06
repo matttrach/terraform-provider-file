@@ -28,7 +28,7 @@ Prioritize tools strictly in order: **Skills > Native Tools > Shell Commands**.
 ## 2. Git Safety & Remote Guardrails
 
 - **Fork-Based Workflow:** Operate strictly under an open-source fork model. Fetch and rebase against canonical upstream references, but conduct all local development on dedicated feature or bugfix branches.
-- **Rancher Upstream Protection:** NEVER execute `git push` directly against any remote, branch, or repository owned by `rancher` under any circumstances.
+- **Canonical Upstream Protection:** NEVER execute `git push` directly against the canonical upstream remote (`upstream`, or any repository owned by `rancher` or the upstream organization) under any circumstances.
 - **Branch Protection:** NEVER push directly to `main` or `master` on any remote.
 - **Allowed Push Target:** Direct all push operations exclusively to your personal fork remote (`origin`) on dedicated, non-protected feature/fix branches.
 
@@ -50,12 +50,11 @@ Prioritize tools strictly in order: **Skills > Native Tools > Shell Commands**.
   - Standardize all script automation on non-blocking, asynchronous operations (e.g., promisified `execFile`/`spawn` over `execSync`/`spawnSync`).
   - Always wrap script execution in an `async main()` entrypoint.
   - Declare all I/O-, network-, or disk-bound utilities as `async` functions and explicitly `await` them.
-- **Enforcer Hooks & Troubleshooting Protocol:**
-  - Never write, copy, or run custom wrapper scripts to bypass `.gemini/hooks/block-restricted-commands.js` or trigger hooks manually.
-  - If a hook, agent script, or phase manager fails:
+- **Troubleshooting Protocol:**
+  - If a script, tool, or phase manager fails:
     1. Present the error stack trace directly to the user.
-    2. Ask the user to run the failing command or temporarily disable the hook for diagnosis.
-    3. Do not attempt silent workarounds or alter goals to dodge the failure; the root issue in the hook or script must be addressed.
+    2. Ask the user to run the failing command or investigate the failure.
+    3. Do not attempt silent workarounds or alter goals to dodge the failure; the root issue in the script or environment must be addressed.
 - **Pair Programming Stance:** When encountering unexpected environmental blockers or script failures, pause and consult the user directly.
 
 ---

@@ -287,33 +287,6 @@ export async function loadAgentInstructions(agentName) {
 }
 
 /**
- * Maps a file path to its corresponding standards file.
- * @param {string} filePath
- * @returns {string} Relative path to the standards file
- */
-export function getStandardsFile(filePath) {
-  const ext = path.extname(filePath).toLowerCase();
-  const mappings = {
-    '.go': 'docs/development/reference/Go.toml',
-    '.tf': 'docs/development/reference/Terraform.toml',
-    '.sh': 'docs/development/reference/ShellScripts.toml',
-    '.bash': 'docs/development/reference/ShellScripts.toml',
-    '.js': 'docs/development/reference/JavaScript.toml',
-    '.mjs': 'docs/development/reference/JavaScript.toml',
-    '.cjs': 'docs/development/reference/JavaScript.toml',
-    '.ts': 'docs/development/reference/JavaScript.toml',
-    '.jsx': 'docs/development/reference/JavaScript.toml',
-    '.tsx': 'docs/development/reference/JavaScript.toml',
-    '.md': 'docs/development/reference/DocumentationFormatting.toml',
-    '.toml': 'docs/development/reference/DocumentationFormatting.toml',
-    '.yml': 'docs/development/reference/Workflows.toml',
-    '.yaml': 'docs/development/reference/Workflows.toml',
-    default: 'docs/development/reference/CodingStandards.toml',
-  };
-  return mappings[ext] || mappings['default'];
-}
-
-/**
  * Extracts balanced top-level JSON objects from mixed text.
  * @param {string} str
  * @returns {Array<Object>}

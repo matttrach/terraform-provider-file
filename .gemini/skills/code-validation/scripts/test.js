@@ -1,9 +1,50 @@
 #!/usr/bin/env node
+import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { getRepoRoot, runCommand } from './utils.js';
 
 export const SUPPORTED_MODES = ['unit', 'compile', 'acc', 'acc-relay', 'workflow-scripts', 'agent-scripts', 'all'];
+
+export const MODE_TO_MAKE_TARGET = {
+  unit: 'unit',
+  compile: 'build',
+  acc: 'acc',
+  'acc-relay': 'testaccrelay',
+  all: 'test',
+};
+
+/**
+ * Recursively locates test files matching test conventions.
+ * @param {string} dir
+ * @returns {Promise<Array<string>>}
+ */
+export async function findTestFiles(dir) {
+  const testFiles = [];
+  try {
+    const entries = await fs.readdir(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        if (entry.name !== 'node_modules' && entry.name !== '.git') {
+          const subFiles = await findTestFiles(fullPath);
+          testFiles.push(...subFiles);
+        }
+      } else if (
+        entry.isFile() &&
+        (entry.name.endsWith('.test.js') ||
+          entry.name.endsWith('.test.mjs') ||
+          entry.name.endsWith('.test.ts') ||
+          entry.name.endsWith('.spec.js'))
+      ) {
+        testFiles.push(fullPath);
+      }
+    }
+  } catch {
+    // Ignore unreadable or missing directories
+  }
+  return testFiles;
+}
 
 /**
  * Prints help and usage information for test.js.
@@ -12,16 +53,16 @@ export function printHelp() {
   console.log(`Usage: test.js [mode]
    or: test.js [-m|--mode <mode>]
 
-Executes test suites and verification harnesses.
+Executes test suites and verification harnesses via standard interfaces.
 
 Modes:
-  unit              Run unit tests (default)
-  compile           Run compile check on tests
-  acc               Run acceptance tests
-  acc-relay         Run AWS Test Relay acceptance tests
-  workflow-scripts  Run workflow script unit tests
-  agent-scripts     Run agent script unit tests
-  all               Run all compile, unit, and script tests
+  unit              Run unit tests (default, executes 'make unit')
+  compile           Run compile check on tests (executes 'make build')
+  acc               Run acceptance tests (executes 'make acc')
+  acc-relay         Run AWS Test Relay acceptance tests (executes 'make testaccrelay')
+  workflow-scripts  Run workflow script unit tests via Node test runner
+  agent-scripts     Run agent script unit tests via Node test runner
+  all               Run full test suite (executes 'make test')
 
 Options:
   -m, --mode        Explicitly specify test mode
@@ -74,7 +115,7 @@ export function parseTestArgs(rawArgs = []) {
 }
 
 /**
- * Executes the test harness asynchronously.
+ * Executes the test harness asynchronously using standard GNUmakefile targets.
  *
  * @param {object} [options]
  * @param {string} [options.mode='unit'] - The test mode to execute
@@ -86,9 +127,38 @@ export function parseTestArgs(rawArgs = []) {
 export async function runTest({ mode = 'unit', cwd = null, stdio = 'inherit', commandRunner = runCommand } = {}) {
   const repoRoot = await getRepoRoot();
   const workingDir = cwd || repoRoot;
-  const testScriptPath = path.join(repoRoot, '.github/workflows/scripts/test.sh');
 
-  const result = await commandRunner('bash', [testScriptPath, mode], {
+  if (mode === 'agent-scripts') {
+    const candidateDirs = [
+      path.join(repoRoot, '.gemini/orchestrator'),
+      path.join(repoRoot, 'agent-scripts'),
+      path.join(repoRoot, '.gemini/hooks'),
+      path.join(repoRoot, '.gemini/skills'),
+    ];
+    const testFiles = [];
+    for (const dir of candidateDirs) {
+      const files = await findTestFiles(dir);
+      testFiles.push(...files);
+    }
+    if (testFiles.length === 0) {
+      return { success: false, code: 1, stdout: '', stderr: 'No agent script test files found', mode };
+    }
+    const result = await commandRunner(process.execPath, ['--test', ...testFiles], { cwd: workingDir, stdio });
+    return { ...result, mode };
+  }
+
+  if (mode === 'workflow-scripts') {
+    const workflowTestDir = path.join(repoRoot, '.github/workflows/scripts/tests');
+    const testFiles = await findTestFiles(workflowTestDir);
+    if (testFiles.length === 0) {
+      return { success: false, code: 1, stdout: '', stderr: 'No workflow script test files found', mode };
+    }
+    const result = await commandRunner(process.execPath, ['--test', ...testFiles], { cwd: workingDir, stdio });
+    return { ...result, mode };
+  }
+
+  const makeTarget = MODE_TO_MAKE_TARGET[mode] || mode;
+  const result = await commandRunner('make', [makeTarget], {
     cwd: workingDir,
     stdio,
   });

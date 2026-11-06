@@ -53,4 +53,8 @@ rt: buildrace
 	gotestsum --format standard-verbose --jsonfile report.json --post-run-command "./summarize.sh" -- ./... -v -p=100 -timeout=3000s -run=$(t); \
 	popd;
 
-.PHONY: fmt lint build install generate test testacc testaccrelay debug
+unit: test
+
+acc: testacc
+
+.PHONY: fmt lint build install generate test testacc testaccrelay debug unit acc

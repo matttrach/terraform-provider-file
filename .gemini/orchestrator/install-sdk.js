@@ -2,6 +2,7 @@
 import { execFile } from 'node:child_process';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 
 const execFileAsync = promisify(execFile);
@@ -59,8 +60,18 @@ async function main() {
   const tag = '6a466a7e2fe2b1255752c1e74f69b31f0216084d';
   const tmpDir = path.join(process.cwd(), '.tmp-gemini-sdk');
 
-  const destSdk = path.join(process.cwd(), 'node_modules', '@google', 'gemini-cli-sdk');
-  const destCore = path.join(process.cwd(), 'node_modules', '@google', 'gemini-cli-core');
+  const scriptDir = path.dirname(fileURLToPath(import.meta.url));
+  const geminiDir = path.resolve(scriptDir, '..');
+  const destNodeModulesList = [path.join(process.cwd(), 'node_modules')];
+  const geminiNodeModules = path.join(geminiDir, 'node_modules');
+  if (geminiNodeModules !== destNodeModulesList[0]) {
+    try {
+      await fs.access(geminiDir);
+      destNodeModulesList.push(geminiNodeModules);
+    } catch {
+      // ignore
+    }
+  }
 
   // Prepend local bin directories to ensure tools like tsc are directly in PATH
   const localBin = path.join(tmpDir, 'node_modules', '.bin');
@@ -73,8 +84,6 @@ async function main() {
 
   // 1. Clean up stale directories
   await cleanDir(tmpDir);
-  await cleanDir(destSdk);
-  await cleanDir(destCore);
 
   try {
     // 2. Clone the repository single branch/tag
@@ -102,10 +111,6 @@ async function main() {
       throw new Error('Failed to build gemini-cli-sdk');
     }
 
-    // 4. Create destination directories in node_modules
-    await fs.mkdir(destSdk, { recursive: true });
-    await fs.mkdir(destCore, { recursive: true });
-
     // Helper to copy non-typescript files from src to dist/src
     async function copyNonTsFiles(src, dest) {
       try {
@@ -121,18 +126,28 @@ async function main() {
       }
     }
 
-    // 5. Copy built outputs into our node_modules
+    // 4. Copy built outputs into node_modules destinations
     console.log(`Installing built assets to local node_modules...`);
 
-    // Copy SDK
-    await fs.cp(path.join(tmpDir, 'packages', 'sdk', 'package.json'), path.join(destSdk, 'package.json'));
-    await fs.cp(path.join(tmpDir, 'packages', 'sdk', 'dist'), path.join(destSdk, 'dist'), { recursive: true });
-    await copyNonTsFiles(path.join(tmpDir, 'packages', 'sdk', 'src'), path.join(destSdk, 'dist', 'src'));
+    for (const nodeModulesDir of destNodeModulesList) {
+      const destSdk = path.join(nodeModulesDir, '@google', 'gemini-cli-sdk');
+      const destCore = path.join(nodeModulesDir, '@google', 'gemini-cli-core');
 
-    // Copy Core
-    await fs.cp(path.join(tmpDir, 'packages', 'core', 'package.json'), path.join(destCore, 'package.json'));
-    await fs.cp(path.join(tmpDir, 'packages', 'core', 'dist'), path.join(destCore, 'dist'), { recursive: true });
-    await copyNonTsFiles(path.join(tmpDir, 'packages', 'core', 'src'), path.join(destCore, 'dist', 'src'));
+      await cleanDir(destSdk);
+      await cleanDir(destCore);
+      await fs.mkdir(destSdk, { recursive: true });
+      await fs.mkdir(destCore, { recursive: true });
+
+      // Copy SDK
+      await fs.cp(path.join(tmpDir, 'packages', 'sdk', 'package.json'), path.join(destSdk, 'package.json'));
+      await fs.cp(path.join(tmpDir, 'packages', 'sdk', 'dist'), path.join(destSdk, 'dist'), { recursive: true });
+      await copyNonTsFiles(path.join(tmpDir, 'packages', 'sdk', 'src'), path.join(destSdk, 'dist', 'src'));
+
+      // Copy Core
+      await fs.cp(path.join(tmpDir, 'packages', 'core', 'package.json'), path.join(destCore, 'package.json'));
+      await fs.cp(path.join(tmpDir, 'packages', 'core', 'dist'), path.join(destCore, 'dist'), { recursive: true });
+      await copyNonTsFiles(path.join(tmpDir, 'packages', 'core', 'src'), path.join(destCore, 'dist', 'src'));
+    }
 
     console.log(`✅ Programs successfully installed!`);
   } catch (error) {

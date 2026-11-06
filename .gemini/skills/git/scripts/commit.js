@@ -3,7 +3,26 @@ import { execFile } from 'node:child_process';
 import { simpleGit } from 'simple-git';
 
 const CONVENTIONAL_COMMIT_REGEX =
-  /^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(?:\([^)]+\))?(!?): .+/i;
+  /^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert|env|dev)(?:\([^)]+\))?(!?): .+/i;
+
+export const DEFAULT_PRODUCT_ROOTS = ['internal/', 'src/', 'lib/', 'pkg/', 'cmd/'];
+
+/**
+ * Checks whether a relative file path belongs to product code.
+ * @param {string} filePath - Path to evaluate
+ * @param {Array<string>} [productRoots] - Product directory roots
+ * @returns {boolean}
+ */
+export function fileAffectsProduct(filePath, productRoots = DEFAULT_PRODUCT_ROOTS) {
+  const normalized = filePath.replace(/^[./]+/, '');
+  for (const root of productRoots) {
+    const cleanRoot = root.endsWith('/') ? root : `${root}/`;
+    if (normalized.startsWith(cleanRoot)) {
+      return true;
+    }
+  }
+  return false;
+}
 
 /**
  * Runs cspell check on text asynchronously.
@@ -90,6 +109,17 @@ export function validateCommitMessage({ message, affectsProduct, isMerge = false
 }
 
 /**
+ * Validates a single commit title against Conventional Commits.
+ * @param {string} title - Commit title
+ * @param {boolean} affectsProduct - Whether commit touches product code
+ * @param {boolean} [isMerge=false] - Whether commit is a merge commit
+ * @returns {{valid: boolean, reason?: string, isMerge?: boolean}}
+ */
+export function validateCommitTitle(title, affectsProduct, isMerge = false) {
+  return validateCommitMessage({ message: title, affectsProduct, isMerge });
+}
+
+/**
  * Asynchronously validates all commit checks including spell-checking.
  * @param {object} params
  * @param {string} params.message
@@ -144,7 +174,7 @@ export async function createCommit({ git = simpleGit(), message, checkSpellingFn
     }
   }
 
-  const affectsProduct = diffSummary.files.some((f) => f.file.startsWith('internal/'));
+  const affectsProduct = diffSummary.files.some((f) => fileAffectsProduct(f.file));
   const validation = await validateCommit({ message, affectsProduct, checkSpellingFn });
   if (!validation.valid) {
     throw new Error(validation.reason);

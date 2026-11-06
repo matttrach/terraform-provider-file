@@ -53,7 +53,7 @@ run_eslint() {
     fi
   fi
 
-  local lint_dirs=(".github/workflows/scripts/" ".gemini/hooks/" "agent-scripts/")
+  local lint_dirs=(".github/workflows/scripts/" ".gemini/hooks/" ".gemini/orchestrator/")
   local dir
   for dir in "${lint_dirs[@]}"; do
     if [[ -d "${dir}" ]]; then

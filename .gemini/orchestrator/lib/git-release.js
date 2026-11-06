@@ -1,7 +1,7 @@
 import { exec, execFile } from 'node:child_process';
 import path from 'node:path';
 import { promisify } from 'node:util';
-import { validateCommitTitle } from '../../.github/workflows/scripts/validate-commit-message.js';
+import { fileAffectsProduct, validateCommitTitle } from '../../skills/git/scripts/commit.js';
 
 const execAsync = promisify(exec);
 const execFileAsync = promisify(execFile);
@@ -16,7 +16,7 @@ export async function getGitDiff() {
 }
 
 /**
- * Checks if the cached (staged) or active changes affect product files (i.e. files in internal/).
+ * Checks if the cached (staged) or active changes affect product files.
  * @returns {Promise<boolean>}
  */
 export async function affectsProductFiles() {
@@ -27,7 +27,7 @@ export async function affectsProductFiles() {
     .split('\n')
     .map((f) => f.trim())
     .filter(Boolean);
-  return changedFiles.some((f) => f.startsWith('internal/'));
+  return changedFiles.some((f) => fileAffectsProduct(f));
 }
 
 /**

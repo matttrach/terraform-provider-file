@@ -84,6 +84,9 @@ run_agent_script_tests() {
   echo "==> Running agent script unit tests..."
 
   local test_dirs=()
+  if [[ -d ".gemini/orchestrator" ]]; then
+    test_dirs+=(".gemini/orchestrator")
+  fi
   if [[ -d "agent-scripts" ]]; then
     test_dirs+=("agent-scripts")
   fi

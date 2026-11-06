@@ -36,6 +36,20 @@ export async function getRepoRoot() {
 }
 
 /**
+ * Checks if a file or path exists asynchronously.
+ * @param {string} targetPath - Path to check
+ * @returns {Promise<boolean>}
+ */
+export async function fileExists(targetPath) {
+  try {
+    await fs.access(targetPath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Runs a command asynchronously using spawn, returning execution details.
  *
  * @param {string} command - The command or executable to run
@@ -75,7 +89,9 @@ export function runCommand(command, args, { cwd, stdio = 'inherit', env = {} } =
     let isResolved = false;
 
     child.once('close', (code) => {
-      if (isResolved) return;
+      if (isResolved) {
+        return;
+      }
       isResolved = true;
       resolve({
         success: code === 0,
@@ -86,7 +102,9 @@ export function runCommand(command, args, { cwd, stdio = 'inherit', env = {} } =
     });
 
     child.once('error', (err) => {
-      if (isResolved) return;
+      if (isResolved) {
+        return;
+      }
       isResolved = true;
       resolve({
         success: false,
