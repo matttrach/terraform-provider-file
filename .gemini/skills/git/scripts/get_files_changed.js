@@ -46,10 +46,10 @@ export async function getFilesChanged({ git = simpleGit({ config: ['core.quotepa
     }
   }
 
-  let mergeBase = '';
+  let mergeBase;
   try {
     mergeBase = (await git.raw(['merge-base', base, 'HEAD'])).trim();
-  } catch (err) {
+  } catch {
     try {
       await git.raw(['rev-parse', '--verify', base]);
       mergeBase = base;

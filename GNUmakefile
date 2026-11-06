@@ -2,17 +2,37 @@ SHELL := /bin/bash
 
 default: fmt lint build install generate test testacc
 
-fmt:
+fmt: fmt-go fmt-prettier
+
+fmt-go:
 	gofmt -s -w -e .
 
-lint:
+fmt-prettier:
+	prettier --write .
+
+lint: lint-go lint-scripts lint-format
+
+lint-go:
 	golangci-lint run
+
+lint-scripts:
+	npx eslint .github/workflows/scripts/ .gemini/hooks/ .gemini/orchestrator/ .gemini/skills/
+
+lint-format:
+	prettier --check .
 
 build:
 	go build -o ./bin/ -v ./...
 
 buildrace:
 	go build -race -o ./bin/ -v ./...
+
+testcompile:
+	@if [ -d "./test" ] && [ -f "./test/go.mod" ]; then \
+		(cd ./test && go test -run=^$$ ./...); \
+	fi
+
+compile: build testcompile
 
 generate:
 	cd tools; go generate ./...
@@ -53,4 +73,13 @@ rt: buildrace
 	gotestsum --format standard-verbose --jsonfile report.json --post-run-command "./summarize.sh" -- ./... -v -p=100 -timeout=3000s -run=$(t); \
 	popd;
 
-.PHONY: fmt lint build install generate test testacc testaccrelay debug
+unit: test
+
+acc: testacc
+
+test-scripts:
+	node --test ".github/workflows/scripts/tests/**/*.test.js" ".gemini/orchestrator/lib/**/*.test.js" ".gemini/hooks/**/*.test.js" ".gemini/skills/**/tests/**/*.test.js"
+
+test-all: test test-scripts
+
+.PHONY: fmt lint lint-go lint-scripts lint-format build buildrace compile testcompile install generate test testacc testaccrelay debug unit acc test-scripts test-all

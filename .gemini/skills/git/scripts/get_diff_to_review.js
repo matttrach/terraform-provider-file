@@ -73,8 +73,12 @@ export async function getDiffToReview({
   head = false,
 } = {}) {
   const extraFlags = [];
-  if (statOnly) extraFlags.push('--stat');
-  if (nameOnly) extraFlags.push('--name-only');
+  if (statOnly) {
+    extraFlags.push('--stat');
+  }
+  if (nameOnly) {
+    extraFlags.push('--name-only');
+  }
 
   const fileArgs = files && files.length > 0 ? files : [];
 

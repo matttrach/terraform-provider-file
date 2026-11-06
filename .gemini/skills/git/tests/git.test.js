@@ -5,9 +5,13 @@ import test from 'node:test';
 import {
   checkSpelling,
   createCommit,
+  DEFAULT_PRODUCT_ROOTS,
+  fileAffectsProduct,
+  getProductRoots,
   parseCommitArgs,
   validateCommit,
   validateCommitMessage,
+  validateCommitTitle,
 } from '../scripts/commit.js';
 import { createBranch, parseCreateBranchArgs } from '../scripts/create-branch.js';
 import { getBranchChanges, parseBranchChangesArgs } from '../scripts/get_branch_changes.js';
@@ -896,7 +900,9 @@ test('git skill - getBranchChanges unit tests', async (t) => {
     const captured = [];
     const mockGit = {
       raw: async (args) => {
-        if (args[0] === 'merge-base') return 'abc1234\n';
+        if (args[0] === 'merge-base') {
+          return 'abc1234\n';
+        }
         captured.push(args);
         return 'stat or name output';
       },
@@ -1459,4 +1465,27 @@ test('git skill - createCommit unit tests', async (t) => {
       }, /Non-product change/);
     },
   );
+});
+
+test('git skill - getProductRoots and fileAffectsProduct', async (t) => {
+  await t.test(
+    'returns DEFAULT_PRODUCT_ROOTS when settings file is missing or lacks project.productPaths',
+    async () => {
+      const roots = await getProductRoots('/non/existent/path');
+      assert.deepStrictEqual(roots, DEFAULT_PRODUCT_ROOTS);
+    },
+  );
+
+  await t.test('fileAffectsProduct matches standard and custom roots correctly', () => {
+    assert.strictEqual(fileAffectsProduct('internal/provider.go'), true);
+    assert.strictEqual(fileAffectsProduct('src/index.ts'), true);
+    assert.strictEqual(fileAffectsProduct('docs/README.md'), false);
+    assert.strictEqual(fileAffectsProduct('custom/app.py', ['custom/']), true);
+    assert.strictEqual(fileAffectsProduct('other/app.py', ['custom/']), false);
+  });
+
+  await t.test('validateCommitTitle aliases validateCommitMessage cleanly', () => {
+    const res = validateCommitTitle('feat: add feature', true);
+    assert.strictEqual(res.valid, true);
+  });
 });

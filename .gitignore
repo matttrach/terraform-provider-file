@@ -32,6 +32,7 @@ plans/*
 plans/current.md
 *.pdf
 agent-scripts/*.log
+.gemini/orchestrator/*.log
 PR_DESCRIPTION.md
 REVIEW_FINDINGS.md
 .gemini/tmp

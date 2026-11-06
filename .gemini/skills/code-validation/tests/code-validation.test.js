@@ -433,12 +433,24 @@ test('code-validation skill - execution integration', async (t) => {
     assert.strictEqual(res.mode, 'cspell');
     assert.strictEqual(res.success, true);
     assert.strictEqual(res.stdout, 'cspell passed');
-    assert.strictEqual(executed[0].cmd, 'bash');
-    assert.ok(executed[0].args[0].endsWith('lint.sh'));
-    assert.strictEqual(executed[0].args[1], 'cspell');
+    assert.strictEqual(executed[0].cmd, 'cspell');
+    assert.deepStrictEqual(executed[0].args, ['lint', '--no-progress', '**/*']);
   });
 
-  await t.test('runTest delegates to commandRunner without recursion', async () => {
+  await t.test('runLint mode all executes make lint', async () => {
+    const executed = [];
+    const mockRunner = async (cmd, args) => {
+      executed.push({ cmd, args });
+      return { success: true, code: 0, stdout: 'lint clean', stderr: '' };
+    };
+    const res = await runLint({ mode: 'all', commandRunner: mockRunner });
+    assert.strictEqual(res.mode, 'all');
+    assert.strictEqual(res.success, true);
+    assert.strictEqual(executed[0].cmd, 'make');
+    assert.deepStrictEqual(executed[0].args, ['lint']);
+  });
+
+  await t.test('runTest delegates to make unit without recursion', async () => {
     const executed = [];
     const mockRunner = async (cmd, args) => {
       executed.push({ cmd, args });
@@ -448,9 +460,21 @@ test('code-validation skill - execution integration', async (t) => {
     assert.strictEqual(res.mode, 'unit');
     assert.strictEqual(res.success, true);
     assert.strictEqual(res.stdout, 'tests passed');
-    assert.strictEqual(executed[0].cmd, 'bash');
-    assert.ok(executed[0].args[0].endsWith('test.sh'));
-    assert.strictEqual(executed[0].args[1], 'unit');
+    assert.strictEqual(executed[0].cmd, 'make');
+    assert.deepStrictEqual(executed[0].args, ['unit']);
+  });
+
+  await t.test('runTest mode acc delegates to make acc', async () => {
+    const executed = [];
+    const mockRunner = async (cmd, args) => {
+      executed.push({ cmd, args });
+      return { success: true, code: 0, stdout: 'acc tests passed', stderr: '' };
+    };
+    const res = await runTest({ mode: 'acc', commandRunner: mockRunner });
+    assert.strictEqual(res.mode, 'acc');
+    assert.strictEqual(res.success, true);
+    assert.strictEqual(executed[0].cmd, 'make');
+    assert.deepStrictEqual(executed[0].args, ['acc']);
   });
 
   await t.test('runFormat normalizes gofmt target to go with mock commandRunner', async () => {
@@ -489,6 +513,22 @@ test('code-validation skill - execution integration', async (t) => {
     assert.deepStrictEqual(executed[0].args, ['--check', '.']);
   });
 
+  await t.test('runFormat executes shfmt with commandRunner', async () => {
+    const executed = [];
+    const mockRunner = async (cmd, args) => {
+      executed.push({ cmd, args });
+      return { success: true, code: 0, stdout: 'clean', stderr: '' };
+    };
+    const res = await runFormat({
+      target: 'shfmt',
+      check: true,
+      commandRunner: mockRunner,
+    });
+    assert.strictEqual(res.target, 'shfmt');
+    assert.strictEqual(res.success, true);
+    assert.strictEqual(executed.length, 1);
+  });
+
   await t.test('runLint resolves script from getRepoRoot while passing custom cwd to commandRunner', async () => {
     const executed = [];
     const mockRunner = async (cmd, args, opts) => {
@@ -497,17 +537,14 @@ test('code-validation skill - execution integration', async (t) => {
     };
     const customCwd = '/custom/fixture/dir';
     const res = await runLint({
-      mode: 'eslint',
+      mode: 'all',
       cwd: customCwd,
       commandRunner: mockRunner,
     });
     assert.strictEqual(res.success, true);
     assert.strictEqual(executed.length, 1);
-    assert.ok(
-      !executed[0].args[0].startsWith(customCwd),
-      'Script path must be resolved from repo root, not custom cwd',
-    );
-    assert.ok(executed[0].args[0].endsWith('.github/workflows/scripts/lint.sh'));
+    assert.strictEqual(executed[0].cmd, 'make');
+    assert.deepStrictEqual(executed[0].args, ['lint']);
     assert.strictEqual(executed[0].opts.cwd, customCwd);
   });
 });

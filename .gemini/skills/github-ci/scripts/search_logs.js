@@ -10,6 +10,7 @@ const DEFAULT_PATTERN = /\b(error|fail|failure|exception|exit status|fatal|panic
  * @returns {string}
  */
 export function stripAnsi(str) {
+  // eslint-disable-next-line no-control-regex
   return str ? str.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '') : '';
 }
 
@@ -46,10 +47,14 @@ export async function searchLogs({ logsDir, pattern = DEFAULT_PATTERN, limit = 1
   const results = [];
 
   async function walk(dir) {
-    if (limit && results.length >= limit) return;
+    if (limit && results.length >= limit) {
+      return;
+    }
     const entries = await fs.readdir(dir, { withFileTypes: true });
     for (const entry of entries) {
-      if (limit && results.length >= limit) return;
+      if (limit && results.length >= limit) {
+        return;
+      }
       const fullPath = path.join(dir, entry.name);
       if (entry.isDirectory()) {
         await walk(fullPath);
@@ -58,7 +63,9 @@ export async function searchLogs({ logsDir, pattern = DEFAULT_PATTERN, limit = 1
           const content = await fs.readFile(fullPath, 'utf8');
           const lines = content.split('\n');
           for (let i = 0; i < lines.length; i++) {
-            if (limit && results.length >= limit) break;
+            if (limit && results.length >= limit) {
+              break;
+            }
             const cleanLine = stripAnsi(lines[i]);
             if (regex.test(cleanLine) || regex.test(lines[i])) {
               results.push({
@@ -96,10 +103,14 @@ export function parseSearchArgs(args = []) {
     const a = args[i];
     if ((a === '-n' || a === '--limit') && i + 1 < args.length) {
       const parsed = parseInt(args[++i], 10);
-      if (!isNaN(parsed) && parsed > 0) limit = parsed;
+      if (!isNaN(parsed) && parsed > 0) {
+        limit = parsed;
+      }
     } else if (a.startsWith('-n=') || a.startsWith('--limit=')) {
       const parsed = parseInt(a.slice(a.indexOf('=') + 1), 10);
-      if (!isNaN(parsed) && parsed > 0) limit = parsed;
+      if (!isNaN(parsed) && parsed > 0) {
+        limit = parsed;
+      }
     } else if (!logsDir && !a.startsWith('-')) {
       logsDir = a;
     } else if (!pattern && !a.startsWith('-')) {

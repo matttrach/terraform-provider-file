@@ -228,7 +228,7 @@ export async function initializeAgentRunner() {
   }
   initPromise = (async () => {
     repoRoot = await getRepoRoot();
-    const logDir = path.join(repoRoot, 'agent-scripts');
+    const logDir = path.join(repoRoot, '.gemini', 'tmp');
     await fsPromises.mkdir(logDir, { recursive: true });
     const logPath = path.join(logDir, 'orchestrator.log');
     logStream = fs.createWriteStream(logPath, { flags: 'a' });

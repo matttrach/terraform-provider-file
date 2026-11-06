@@ -50,8 +50,8 @@ run_exercise() {
     source "${HOME}/.config/gemini/default"
   fi
 
-  # Execute via run-in-nix.sh
-  ./agent-scripts/run-in-nix.sh ./agent-scripts/exercise-agents.js
+  # Execute exercise-agents.js directly
+  node "${script_dir}/exercise-agents.js"
 }
 
 main() {

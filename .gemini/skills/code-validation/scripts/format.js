@@ -105,7 +105,6 @@ export async function runFormat({
 
   const repoRoot = await getRepoRoot();
   const workingDir = cwd || repoRoot;
-  const lintScriptPath = path.join(repoRoot, '.github/workflows/scripts/lint.sh');
 
   const normalized = target === 'gofmt' ? 'go' : target;
   const toolsToRun = normalized === 'all' ? ['go', 'prettier', 'shfmt', 'golangci-lint'] : [normalized];
@@ -124,9 +123,13 @@ export async function runFormat({
         }
         if (stdio === 'inherit') {
           const out = res.stdout ? res.stdout.trim() : '';
-          if (out) console.log(out);
+          if (out) {
+            console.log(out);
+          }
           const err = res.stderr ? res.stderr.trim() : '';
-          if (err) console.error(err);
+          if (err) {
+            console.error(err);
+          }
         }
       } else {
         res = await commandRunner('gofmt', ['-s', '-w', '-e', '.'], { cwd: workingDir, stdio });
@@ -135,11 +138,11 @@ export async function runFormat({
       const prettierArgs = check ? ['--check', '.'] : ['--write', '.'];
       res = await commandRunner('prettier', prettierArgs, { cwd: workingDir, stdio });
     } else if (tool === 'shfmt') {
-      const scriptArgs = check ? ['shfmt'] : ['shfmt', '--fix'];
-      res = await commandRunner('bash', [lintScriptPath, ...scriptArgs], { cwd: workingDir, stdio });
+      const shfmtArgs = check ? ['-i', '2', '-ci', '-bn', '-d', '.'] : ['-i', '2', '-ci', '-bn', '-w', '.'];
+      res = await commandRunner('shfmt', shfmtArgs, { cwd: workingDir, stdio });
     } else if (tool === 'golangci-lint') {
-      const scriptArgs = check ? ['golangci-lint'] : ['golangci-lint', '--fix'];
-      res = await commandRunner('bash', [lintScriptPath, ...scriptArgs], { cwd: workingDir, stdio });
+      const lintArgs = check ? ['run'] : ['run', '--fix'];
+      res = await commandRunner('golangci-lint', lintArgs, { cwd: workingDir, stdio });
     }
 
     const toolSuccess = res.success;

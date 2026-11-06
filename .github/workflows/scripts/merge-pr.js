@@ -127,7 +127,7 @@ export default async ({ github, context, core, process }) => {
     const defaultBody = defaultBodyLines.join('\n').trim();
 
     const CONVENTIONAL_COMMIT_REGEXP =
-      /^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(?:\([^)]+\))?(!?): .+/i;
+      /^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert|env|dev)(?:\([^)]+\))?(!?): .+/i;
     const hasType = CONVENTIONAL_COMMIT_REGEXP.test(defaultTitle);
     if (!hasType) {
       defaultTitle = `fix: ${defaultTitle}`;
@@ -276,7 +276,7 @@ ${commitsList}
  */
 function validateCommitTitle(title, affectsProduct) {
   const CONVENTIONAL_COMMIT_REGEXP =
-    /^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(?:\([^)]+\))?(!?): .+/i;
+    /^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert|env|dev)(?:\([^)]+\))?(!?): .+/i;
 
   if (!CONVENTIONAL_COMMIT_REGEXP.test(title)) {
     return {

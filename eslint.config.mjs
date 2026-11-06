@@ -48,7 +48,13 @@ export default [
   },
   // Non-restricted rules for local utility, hooks, and test files
   {
-    files: ['.gemini/hooks/**/*.js', '.gemini/skills/**/*.js', 'agent-scripts/**/*.js', 'test/**/*.js', '**/*.test.js'],
+    files: [
+      '.gemini/hooks/**/*.js',
+      '.gemini/skills/**/*.js',
+      '.gemini/orchestrator/**/*.js',
+      'test/**/*.js',
+      '**/*.test.js',
+    ],
     rules: {
       'require-await': 'off',
       'no-empty': ['error', { allowEmptyCatch: false }],

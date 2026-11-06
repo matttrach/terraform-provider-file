@@ -1,9 +1,50 @@
 #!/usr/bin/env node
 import { execFile } from 'node:child_process';
+import fs from 'node:fs/promises';
+import path from 'node:path';
 import { simpleGit } from 'simple-git';
 
 const CONVENTIONAL_COMMIT_REGEX =
-  /^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(?:\([^)]+\))?(!?): .+/i;
+  /^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert|env|dev)(?:\([^)]+\))?(!?): .+/i;
+
+export const DEFAULT_PRODUCT_ROOTS = ['internal/', 'src/', 'lib/', 'pkg/', 'cmd/'];
+
+/**
+ * Loads configured product path roots from .gemini/settings.json, falling back to DEFAULT_PRODUCT_ROOTS.
+ * @param {string} [repoRoot] - Repository root directory
+ * @returns {Promise<Array<string>>}
+ */
+export async function getProductRoots(repoRoot = null) {
+  try {
+    const root = repoRoot || process.cwd();
+    const settingsPath = path.join(root, '.gemini/settings.json');
+    const content = await fs.readFile(settingsPath, 'utf8');
+    const parsed = JSON.parse(content);
+    if (Array.isArray(parsed?.project?.productPaths) && parsed.project.productPaths.length > 0) {
+      return parsed.project.productPaths;
+    }
+  } catch {
+    // Fallback if settings file is missing or unparseable
+  }
+  return DEFAULT_PRODUCT_ROOTS;
+}
+
+/**
+ * Checks whether a relative file path belongs to product code.
+ * @param {string} filePath - Path to evaluate
+ * @param {Array<string>} [productRoots] - Product directory roots
+ * @returns {boolean}
+ */
+export function fileAffectsProduct(filePath, productRoots = DEFAULT_PRODUCT_ROOTS) {
+  const normalized = filePath.replace(/^[./]+/, '');
+  for (const root of productRoots) {
+    const cleanRoot = root.endsWith('/') ? root : `${root}/`;
+    if (normalized.startsWith(cleanRoot)) {
+      return true;
+    }
+  }
+  return false;
+}
 
 /**
  * Runs cspell check on text asynchronously.
@@ -90,6 +131,17 @@ export function validateCommitMessage({ message, affectsProduct, isMerge = false
 }
 
 /**
+ * Validates a single commit title against Conventional Commits.
+ * @param {string} title - Commit title
+ * @param {boolean} affectsProduct - Whether commit touches product code
+ * @param {boolean} [isMerge=false] - Whether commit is a merge commit
+ * @returns {{valid: boolean, reason?: string, isMerge?: boolean}}
+ */
+export function validateCommitTitle(title, affectsProduct, isMerge = false) {
+  return validateCommitMessage({ message: title, affectsProduct, isMerge });
+}
+
+/**
  * Asynchronously validates all commit checks including spell-checking.
  * @param {object} params
  * @param {string} params.message
@@ -144,7 +196,8 @@ export async function createCommit({ git = simpleGit(), message, checkSpellingFn
     }
   }
 
-  const affectsProduct = diffSummary.files.some((f) => f.file.startsWith('internal/'));
+  const roots = await getProductRoots();
+  const affectsProduct = diffSummary.files.some((f) => fileAffectsProduct(f.file, roots));
   const validation = await validateCommit({ message, affectsProduct, checkSpellingFn });
   if (!validation.valid) {
     throw new Error(validation.reason);

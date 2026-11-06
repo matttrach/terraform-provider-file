@@ -371,7 +371,7 @@ test('agent-runner initialization and logging', async (t) => {
     const config = await initializeAgentRunner();
     assert.ok(config.repoRoot);
     assert.ok(config.logPath);
-    assert.ok(config.logPath.endsWith(path.join('agent-scripts', 'orchestrator.log')));
+    assert.ok(config.logPath.endsWith(path.join('.gemini', 'tmp', 'orchestrator.log')));
     assert.ok(config.models);
     assert.ok(config.models.pro);
     assert.ok(config.models.flash);

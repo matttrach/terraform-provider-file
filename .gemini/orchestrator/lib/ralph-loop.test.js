@@ -252,7 +252,7 @@ test('captureGitState mock execution', async (t) => {
     const mockExec = async (cmd, args) => {
       const fullCmd = `${cmd} ${args.join(' ')}`;
       if (fullCmd.includes('--name-only')) {
-        return { stdout: 'agent-scripts/lib/utils.js\nagent-scripts/lib/ralph-loop.js\n' };
+        return { stdout: '.gemini/orchestrator/lib/utils.js\n.gemini/orchestrator/lib/ralph-loop.js\n' };
       }
       return { stdout: '' };
     };
@@ -266,8 +266,11 @@ test('captureGitState mock execution', async (t) => {
       execFn: mockExec,
     });
 
-    assert.deepStrictEqual(state.changedFiles, ['agent-scripts/lib/utils.js', 'agent-scripts/lib/ralph-loop.js']);
-    assert.ok(state.modifiedFilesContext.includes('<file path="agent-scripts/lib/utils.js">'));
+    assert.deepStrictEqual(state.changedFiles, [
+      '.gemini/orchestrator/lib/utils.js',
+      '.gemini/orchestrator/lib/ralph-loop.js',
+    ]);
+    assert.ok(state.modifiedFilesContext.includes('<file path=".gemini/orchestrator/lib/utils.js">'));
     assert.ok(
       state.modifiedFilesContext.includes(
         '[File content omitted: total modified context limit (15360 bytes) reached',
@@ -276,7 +279,7 @@ test('captureGitState mock execution', async (t) => {
           '[File content omitted: total modified context limit (15360 bytes) exceeded',
         ),
     );
-    assert.ok(state.modifiedFilesContext.includes("Inspect 'agent-scripts/lib/ralph-loop.js' with read_file"));
+    assert.ok(state.modifiedFilesContext.includes("Inspect '.gemini/orchestrator/lib/ralph-loop.js' with read_file"));
   });
 
   await t.test('proactively excludes git pack and index binary files (.pack, .idx)', async () => {

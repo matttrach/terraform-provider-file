@@ -9,7 +9,7 @@ import { promisify } from 'node:util';
 
 import { tool, z } from '@google/gemini-cli-sdk';
 
-import { PREFERRED_DEFAULT_BRANCHES } from '../.gemini/skills/git/scripts/create-branch.js';
+import { PREFERRED_DEFAULT_BRANCHES } from '../skills/git/scripts/create-branch.js';
 
 // Import our deterministic modular libraries
 import { flushLogs, initializeAgentRunner, isAbortError, runAgentSession } from './lib/agent-runner.js';
@@ -410,7 +410,9 @@ async function main() {
         title: `Add Tests: ${objective}`,
         objective: objective,
         scope_boundaries: {
-          in_scope: ['Adding or expanding automated tests inside test folders or *_test.go files.'],
+          in_scope: [
+            'Adding or expanding automated test files (e.g. *_test.go, *.test.*, *.spec.*, test_*.*, or files under test directories).',
+          ],
           out_of_scope: ['Modifying any non-test product files (files outside of test files).'],
         },
         exit_criteria: [
@@ -598,7 +600,7 @@ Implement the approved plan meticulously and surgically. The full active plan fr
 
       if (selection === '4') {
         // Strictly restrict the agent to test files
-        implementInstructions += `\n⚠️ STRICT CONSTRAINT: You are ONLY allowed to write or modify test files (e.g. *_test.go, *.test.js, or files under test directories). DO NOT modify any product files.`;
+        implementInstructions += `\n⚠️ STRICT CONSTRAINT: You are ONLY allowed to write or modify test files (e.g. *_test.go, *.test.*, *.spec.*, test_*.*, or files under test directories). DO NOT modify any product files.`;
       }
 
       const implementPrompt = `Objective: "${objective}".
@@ -674,7 +676,7 @@ ${activePlanContent}
       proImplementationIterations: 1,
       implementerInstructions:
         selection === '4'
-          ? `${DEFAULT_IMPLEMENTER_INSTRUCTIONS}\n⚠️ STRICT CONSTRAINT: You are ONLY allowed to write or modify test files (e.g. *_test.go, *.test.js, or files under test directories). DO NOT modify any product files.`
+          ? `${DEFAULT_IMPLEMENTER_INSTRUCTIONS}\n⚠️ STRICT CONSTRAINT: You are ONLY allowed to write or modify test files (e.g. *_test.go, *.test.*, *.spec.*, test_*.*, or files under test directories). DO NOT modify any product files.`
           : DEFAULT_IMPLEMENTER_INSTRUCTIONS,
       sessionRunner: runAgentSession,
       validator: (args) =>

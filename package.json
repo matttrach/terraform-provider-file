@@ -9,8 +9,8 @@
     "test": "test"
   },
   "scripts": {
-    "test": "node agent-scripts/compile-docs.js && node --test \".github/workflows/scripts/tests/**/*.test.js\" \"agent-scripts/lib/**/*.test.js\" \".gemini/hooks/**/*.test.js\" \".gemini/skills/**/tests/**/*.test.js\"",
-    "setup": "node agent-scripts/install-sdk.js"
+    "test": "node --test \".github/workflows/scripts/tests/**/*.test.js\" \".gemini/orchestrator/lib/**/*.test.js\" \".gemini/hooks/**/*.test.js\" \".gemini/skills/**/tests/**/*.test.js\"",
+    "setup": "node .gemini/orchestrator/install-sdk.js"
   },
   "repository": {
     "type": "git",
