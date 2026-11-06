@@ -160,10 +160,21 @@ export async function runTest({ mode = 'unit', cwd = null, stdio = 'inherit', co
   }
 
   const makeTarget = MODE_TO_MAKE_TARGET[mode] || mode;
-  const result = await commandRunner('make', [makeTarget], {
+  let result = await commandRunner('make', [makeTarget], {
     cwd: workingDir,
     stdio,
   });
+
+  // Graceful fallback to core C1 targets if extended target is not defined in host Makefile
+  if (!result.success && typeof result.stderr === 'string' && result.stderr.includes('No rule to make target')) {
+    if (mode === 'compile') {
+      result = await commandRunner('make', ['build'], { cwd: workingDir, stdio });
+    } else if (mode === 'acc-relay') {
+      result = await commandRunner('make', ['acc'], { cwd: workingDir, stdio });
+    } else if (mode === 'all') {
+      result = await commandRunner('make', ['test'], { cwd: workingDir, stdio });
+    }
+  }
 
   return {
     ...result,

@@ -40,14 +40,20 @@ To function with `.gemini/`, the host repository must satisfy four standard cont
 
 ### C1: `GNUmakefile` Standard Interface
 
-The host repository must provide a `GNUmakefile` (or `Makefile`) implementing these standard targets:
+The host repository must provide a `GNUmakefile` (or `Makefile`) implementing these core targets:
 
 - `make build`: Compiles workspace binaries or packages.
 - `make unit`: Executes unit test suites.
 - `make acc`: Executes acceptance or integration test suites.
 - `make test`: Executes the default test harness (e.g. unit tests or full test suite).
-- `make lint`: Executes all workspace static analysis tools.
+- `make lint`: Executes all workspace static analysis tools across all codebase languages.
 - `make fmt`: Auto-formats code across all supported formatters.
+
+Optional extended targets (with automated fallback to core targets in `test.js` if omitted):
+
+- `make compile`: Compiles both product and test binaries (falls back to `make build`).
+- `make test-all`: Executes full test suites across all languages (falls back to `make test`).
+- `make testaccrelay`: Executes relay/cloud acceptance tests (falls back to `make acc`).
 
 ### C2: Tooling & Environment Contract
 

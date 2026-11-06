@@ -28,7 +28,9 @@ buildrace:
 	go build -race -o ./bin/ -v ./...
 
 testcompile:
-	@pushd ./test > /dev/null; go test -c -o /dev/null ./...; popd > /dev/null;
+	@if [ -d "./test" ] && [ -f "./test/go.mod" ]; then \
+		(cd ./test && go test -run=^$$ ./...); \
+	fi
 
 compile: build testcompile
 
