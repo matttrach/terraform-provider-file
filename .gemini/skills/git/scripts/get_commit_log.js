@@ -12,8 +12,12 @@ import { simpleGit } from 'simple-git';
 export async function getCommitLog({ git = simpleGit(), limit = 5, file, branch } = {}) {
   try {
     const options = { maxCount: limit };
-    if (file) options.file = file;
-    if (branch) options.from = branch;
+    if (file) {
+      options.file = file;
+    }
+    if (branch) {
+      options.from = branch;
+    }
     const log = await git.log(options);
     return log.all.map((c) => ({
       hash: c.hash.slice(0, 7),
@@ -45,10 +49,14 @@ export function parseCommitLogOptions(args = []) {
     const arg = args[i];
     if ((arg === '-n' || arg === '--limit') && i + 1 < args.length) {
       const parsed = parseInt(args[++i], 10);
-      if (!isNaN(parsed) && parsed > 0) limit = parsed;
+      if (!isNaN(parsed) && parsed > 0) {
+        limit = parsed;
+      }
     } else if (arg.startsWith('-n=') || arg.startsWith('--limit=')) {
       const parsed = parseInt(arg.slice(arg.indexOf('=') + 1), 10);
-      if (!isNaN(parsed) && parsed > 0) limit = parsed;
+      if (!isNaN(parsed) && parsed > 0) {
+        limit = parsed;
+      }
     } else if ((arg === '-f' || arg === '--file') && i + 1 < args.length) {
       file = args[++i];
     } else if (arg.startsWith('-f=') || arg.startsWith('--file=')) {
@@ -59,7 +67,9 @@ export function parseCommitLogOptions(args = []) {
       branch = arg.slice(arg.indexOf('=') + 1);
     } else if (/^\d+$/.test(arg)) {
       const parsed = parseInt(arg, 10);
-      if (!isNaN(parsed) && parsed > 0) limit = parsed;
+      if (!isNaN(parsed) && parsed > 0) {
+        limit = parsed;
+      }
     } else if (!file && (arg.includes('/') || arg.includes('.'))) {
       file = arg;
     } else if (!branch && !arg.startsWith('-')) {

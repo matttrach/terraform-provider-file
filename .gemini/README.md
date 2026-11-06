@@ -77,7 +77,7 @@ The host repository does NOT need to be a Node.js project. Dependencies can be i
 - No root `package.json` requirement: Non-Node repositories (Go, Rust, Python, C) do not need root Node artifacts.
 - No `.github/workflows/scripts/test.sh` or `lint.sh` dependency: The `code-validation` skill calls `make` targets directly.
 - No hardcoded product directory assumptions: Product detection scans standard roots (`internal/`, `src/`, `lib/`, `pkg/`, `cmd/`) or custom paths in `.gemini/settings.json`.
-- No hardcoded test extensions: Test detection supports standard conventions (`*_test.go`, `*.test.*`, `*.spec.*`, `test_*.*`, and test directories).
+- Flexible test boundary detection: Orchestrator test boundary enforcement accepts standard conventions across languages (`*_test.go`, `*.test.*`, `*.spec.*`, `test_*.*`, and test directories), while host test execution delegates to standard make targets (`make test`, `make unit`, `make compile`, `make test-all`).
 
 ---
 

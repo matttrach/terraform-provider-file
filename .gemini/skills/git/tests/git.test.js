@@ -900,7 +900,9 @@ test('git skill - getBranchChanges unit tests', async (t) => {
     const captured = [];
     const mockGit = {
       raw: async (args) => {
-        if (args[0] === 'merge-base') return 'abc1234\n';
+        if (args[0] === 'merge-base') {
+          return 'abc1234\n';
+        }
         captured.push(args);
         return 'stat or name output';
       },

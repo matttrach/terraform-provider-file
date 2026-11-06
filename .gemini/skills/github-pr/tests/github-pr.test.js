@@ -705,6 +705,7 @@ test('github-pr skill - resolveThread unit tests', async (t) => {
     assert.strictEqual(thread.id, 'PRRT_kwDOAbc123');
     assert.strictEqual(thread.isResolved, false);
     assert.match(capturedQuery, /unresolveReviewThread/);
+    assert.strictEqual(capturedVars?.threadId, 'PRRT_kwDOAbc123');
   });
 });
 

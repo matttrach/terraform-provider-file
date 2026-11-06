@@ -108,17 +108,18 @@ export function parseResolveArgs(args = []) {
     return { unresolve: false };
   }
   const unresolve = args.includes('--unresolve');
-  let cleanArgs = args.filter((a) => a !== '--unresolve');
+  const cleanArgs = args.filter((a) => a !== '--unresolve');
 
   const isUrl = (v) => /\/pull\/(\d+)/.test(String(v || ''));
   const isNum = (v) => /^#?\d+$/.test(String(v || '').trim()) || isUrl(v);
   const toNum = (v) => {
     const s = String(v).trim();
     const urlMatch = s.match(/\/pull\/(\d+)/);
-    if (urlMatch) return parseInt(urlMatch[1], 10);
+    if (urlMatch) {
+      return parseInt(urlMatch[1], 10);
+    }
     return parseInt(s.replace(/^#/, ''), 10);
   };
-  const isRef = (v) => isNum(v) || String(v || '').startsWith('PRRT_');
 
   let prNumber;
   let prTarget;

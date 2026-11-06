@@ -1,4 +1,5 @@
 import assert from 'node:assert';
+import { Buffer } from 'node:buffer';
 import path from 'node:path';
 import test from 'node:test';
 import { getCurrentBranch, getGhCliToken, getRepoDetails, sys } from '../scripts/auth.js';
@@ -634,7 +635,7 @@ test('github-ci skill - findFailedRuns unit tests', async (t) => {
     assert.strictEqual(cancelled[0].id, 5);
     assert.strictEqual(captured.status, 'completed');
 
-    const inProgress = await findFailedRuns({
+    await findFailedRuns({
       octokit: mockOctokit,
       owner: 'testowner',
       repo: 'testrepo',

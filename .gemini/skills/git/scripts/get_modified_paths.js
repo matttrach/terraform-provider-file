@@ -13,7 +13,9 @@ export async function getModifiedPaths({ git = simpleGit() } = {}) {
   const paths = [];
 
   for (const line of lines) {
-    if (!line || line.length < 3) continue;
+    if (!line || line.length < 3) {
+      continue;
+    }
     let filePath = line.slice(3);
     if (filePath.includes(' -> ')) {
       filePath = filePath.split(' -> ')[1];

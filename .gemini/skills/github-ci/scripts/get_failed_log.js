@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { Buffer } from 'node:buffer';
 import { getCurrentBranch, getOctokit, getRepoDetails } from './auth.js';
 import { findFailedRuns } from './find_failed_runs.js';
 
@@ -8,6 +9,7 @@ import { findFailedRuns } from './find_failed_runs.js';
  * @returns {string}
  */
 export function stripAnsi(str) {
+  // eslint-disable-next-line no-control-regex
   return str ? str.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '') : '';
 }
 
@@ -114,10 +116,14 @@ export function parseFailedLogArgs(args = []) {
       targetBranch = a.slice(a.indexOf('=') + 1);
     } else if ((a === '-r' || a === '--run' || a === '--run-id') && i + 1 < args.length) {
       const parsed = parseInt(args[++i].replace(/^#/, ''), 10);
-      if (!isNaN(parsed)) runId = parsed;
+      if (!isNaN(parsed)) {
+        runId = parsed;
+      }
     } else if (a.startsWith('-r=') || a.startsWith('--run=') || a.startsWith('--run-id=')) {
       const parsed = parseInt(a.slice(a.indexOf('=') + 1).replace(/^#/, ''), 10);
-      if (!isNaN(parsed)) runId = parsed;
+      if (!isNaN(parsed)) {
+        runId = parsed;
+      }
     } else if (/^#?\d+$/.test(a)) {
       runId = parseInt(a.replace(/^#/, ''), 10);
     } else if (a !== 'current' && !a.startsWith('-')) {

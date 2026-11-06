@@ -35,7 +35,9 @@ export async function findTestFiles(dir) {
         (entry.name.endsWith('.test.js') ||
           entry.name.endsWith('.test.mjs') ||
           entry.name.endsWith('.test.ts') ||
-          entry.name.endsWith('.spec.js'))
+          entry.name.endsWith('.spec.js') ||
+          entry.name.endsWith('.spec.mjs') ||
+          entry.name.endsWith('.spec.ts'))
       ) {
         testFiles.push(fullPath);
       }
@@ -57,12 +59,12 @@ Executes test suites and verification harnesses via standard interfaces.
 
 Modes:
   unit              Run unit tests (default, executes 'make unit')
-  compile           Run compile check on tests (executes 'make build')
+  compile           Run compile check on provider and tests (executes 'make compile')
   acc               Run acceptance tests (executes 'make acc')
   acc-relay         Run AWS Test Relay acceptance tests (executes 'make testaccrelay')
   workflow-scripts  Run workflow script unit tests via Node test runner
   agent-scripts     Run agent script unit tests via Node test runner
-  all               Run full test suite (executes 'make test')
+  all               Run full test suite across all languages (executes 'make test-all')
 
 Options:
   -m, --mode        Explicitly specify test mode

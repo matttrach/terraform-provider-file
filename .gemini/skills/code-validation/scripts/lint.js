@@ -141,7 +141,7 @@ export async function runLint({
     case 'eslint':
       result = await commandRunner(
         'npx',
-        ['eslint', '.github/workflows/scripts/', '.gemini/hooks/', '.gemini/orchestrator/'],
+        ['eslint', '.github/workflows/scripts/', '.gemini/hooks/', '.gemini/orchestrator/', '.gemini/skills/'],
         { cwd: workingDir, stdio },
       );
       break;

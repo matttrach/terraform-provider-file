@@ -16,9 +16,13 @@ export function parseStageOutput(rawOutput) {
   const lines = rawOutput.split('\n');
 
   for (const line of lines) {
-    if (!line.trim()) continue;
+    if (!line.trim()) {
+      continue;
+    }
     const tabIdx = line.indexOf('\t');
-    if (tabIdx === -1) continue;
+    if (tabIdx === -1) {
+      continue;
+    }
 
     const metadata = line.slice(0, tabIdx).trim().split(/\s+/);
     let filePath = line.slice(tabIdx + 1).trim();
@@ -51,12 +55,14 @@ export async function getStagedFiles({ git = simpleGit() } = {}) {
   const entries = parseStageOutput(rawStage);
 
   // Retrieve cached diff status (A, M, D, R, etc.)
-  let statusMap = new Map();
+  const statusMap = new Map();
   try {
     const rawDiff = await git.raw(['-c', 'core.quotepath=false', 'diff', '--no-ext-diff', '--name-status', '--cached']);
     if (rawDiff.trim()) {
       for (const line of rawDiff.split('\n')) {
-        if (!line.trim()) continue;
+        if (!line.trim()) {
+          continue;
+        }
         const parts = line.split('\t');
         if (parts.length >= 2) {
           const statusCode = parts[0].trim();

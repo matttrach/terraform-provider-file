@@ -85,10 +85,14 @@ export function parseRunArgs(args = []) {
     const arg = args[i];
     if ((arg === '-n' || arg === '--limit') && i + 1 < args.length) {
       const parsed = parseInt(args[++i], 10);
-      if (!isNaN(parsed) && parsed > 0) limit = parsed;
+      if (!isNaN(parsed) && parsed > 0) {
+        limit = parsed;
+      }
     } else if (arg.startsWith('-n=') || arg.startsWith('--limit=')) {
       const parsed = parseInt(arg.slice(arg.indexOf('=') + 1), 10);
-      if (!isNaN(parsed) && parsed > 0) limit = parsed;
+      if (!isNaN(parsed) && parsed > 0) {
+        limit = parsed;
+      }
     } else if ((arg === '-b' || arg === '--branch') && i + 1 < args.length) {
       branchTarget = args[++i];
     } else if (arg.startsWith('-b=') || arg.startsWith('--branch=')) {
@@ -99,7 +103,9 @@ export function parseRunArgs(args = []) {
       status = arg.slice(arg.indexOf('=') + 1);
     } else if (/^\d+$/.test(arg)) {
       const parsed = parseInt(arg, 10);
-      if (!isNaN(parsed) && parsed > 0) limit = parsed;
+      if (!isNaN(parsed) && parsed > 0) {
+        limit = parsed;
+      }
     } else if (arg && !arg.startsWith('-')) {
       branchTarget = arg;
     }

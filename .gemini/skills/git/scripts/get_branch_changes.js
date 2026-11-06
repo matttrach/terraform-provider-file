@@ -53,10 +53,10 @@ export async function getBranchChanges({
     }
   }
 
-  let mergeBase = '';
+  let mergeBase;
   try {
     mergeBase = (await git.raw(['merge-base', base, 'HEAD'])).trim();
-  } catch (err) {
+  } catch {
     try {
       await git.raw(['rev-parse', '--verify', base]);
       mergeBase = base;
@@ -69,8 +69,12 @@ export async function getBranchChanges({
   }
 
   const extraFlags = [];
-  if (statOnly) extraFlags.push('--stat');
-  if (nameOnly) extraFlags.push('--name-only');
+  if (statOnly) {
+    extraFlags.push('--stat');
+  }
+  if (nameOnly) {
+    extraFlags.push('--name-only');
+  }
 
   const fileArgs = files && files.length > 0 ? files.filter((f) => f !== '--') : [];
   if (git.raw) {

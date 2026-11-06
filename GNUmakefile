@@ -2,8 +2,13 @@ SHELL := /bin/bash
 
 default: fmt lint build install generate test testacc
 
-fmt:
+fmt: fmt-go fmt-prettier
+
+fmt-go:
 	gofmt -s -w -e .
+
+fmt-prettier:
+	prettier --write .
 
 lint: lint-go lint-scripts lint-format
 
@@ -11,7 +16,7 @@ lint-go:
 	golangci-lint run
 
 lint-scripts:
-	npx eslint .github/workflows/scripts/ .gemini/hooks/ .gemini/orchestrator/
+	npx eslint .github/workflows/scripts/ .gemini/hooks/ .gemini/orchestrator/ .gemini/skills/
 
 lint-format:
 	prettier --check .

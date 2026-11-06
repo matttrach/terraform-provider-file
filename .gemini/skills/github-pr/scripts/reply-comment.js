@@ -143,7 +143,9 @@ export function parseReplyArgs(args) {
   const toNum = (v) => {
     const s = String(v).trim();
     const urlMatch = s.match(/\/pull\/(\d+)/);
-    if (urlMatch) return parseInt(urlMatch[1], 10);
+    if (urlMatch) {
+      return parseInt(urlMatch[1], 10);
+    }
     return parseInt(s.replace(/^#/, ''), 10);
   };
   const isRef = (v) => isNum(v) || String(v || '').startsWith('PRRT_');

@@ -51,11 +51,11 @@ export async function findPR({ octokit, owner, repo, target }) {
               })
             ).data || [];
 
-        const match =
+        const refMatch =
           allPulls.find((p) => p.state === 'open' && p.head?.ref === trimmedTarget) ||
           allPulls.find((p) => p.head?.ref === trimmedTarget);
-        if (match) {
-          pullNumber = match.number;
+        if (refMatch) {
+          pullNumber = refMatch.number;
         } else {
           throw new Error(`No pull request found for branch '${target}' in ${owner}/${repo}.`);
         }
