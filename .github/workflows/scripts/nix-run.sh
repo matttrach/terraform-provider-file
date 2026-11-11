@@ -86,9 +86,14 @@ EOF
   local attempt=1
   local success=false
 
+  local flake_target="."
+  if [[ -d "${PWD}/.dev" && -f "${PWD}/.dev/flake.nix" ]]; then
+    flake_target="${PWD}/.dev#ci"
+  fi
+
   while [[ ${attempt} -le ${max_attempts} ]]; do
     echo "Executing nix develop (Attempt ${attempt}/${max_attempts})..." >&2
-    if sudo -E -u suse /home/suse/.nix-profile/bin/nix develop \
+    if sudo -E -u suse /home/suse/.nix-profile/bin/nix develop "${flake_target}" \
       --extra-experimental-features nix-command \
       --extra-experimental-features flakes \
       --command bash -e "${SCRIPT_FILE}" "$PWD" "$@"; then

@@ -7,7 +7,7 @@
     { "local": "cspell.json", "remote": "cspell.json" },
     { "local": "custom_words.txt", "remote": "custom_words.txt" },
     { "local": "eslint.config.mjs", "remote": "eslint.config.mjs" },
-    { "local": "flake.nix", "remote": "flake.nix" },
+    { "local": ".dev/flake.nix", "remote": ".dev/flake.nix" },
     { "local": ".github/workflows/pull_request.yaml", "remote": ".github/workflows/pull_request.yaml" },
     { "local": ".github/workflows/scripts/lint.sh", "remote": ".github/workflows/scripts/lint.sh" },
     { "local": ".github/workflows/scripts/test.sh", "remote": ".github/workflows/scripts/test.sh" },

@@ -120,18 +120,10 @@
         claude-code = unfreePkgs.claude-code;
         github-copilot-cli = unfreePkgs.github-copilot-cli;
 
-        devPackages = [
-          # downloaded packages here
+        ciPackages = [
           leftovers
           terraform
-          initNodeEnv
-          gemini-cli
-        ] ++ ([
-          # unfree packages from the nix repository
-          claude-code
-          github-copilot-cli
-        ]) ++ (with pkgs; [
-          # free packages from the nix repository
+        ] ++ (with pkgs; [
           actionlint
           age
           awscli2
@@ -174,8 +166,15 @@
           which
           xz
           yq-go
-        ]) ++ ( if pkgs.stdenv.hostPlatform.isDarwin then [
-          # mac only packages
+        ]);
+
+        devPackages = ciPackages ++ [
+          initNodeEnv
+          gemini-cli
+        ] ++ ([
+          claude-code
+          github-copilot-cli
+        ]) ++ (if pkgs.stdenv.hostPlatform.isDarwin then [
           macVscode
           swVers
           pkgs.pinentry_mac
@@ -183,10 +182,18 @@
           pkgs.age-plugin-se
         ] else []);
 
+        ciShellPackage = pkgs.symlinkJoin {
+          name = "ci-shell-package";
+          paths = [
+            (pkgs.buildEnv {
+              name = "ci-shell-env";
+              paths = ciPackages;
+            })
+          ];
+        };
+
         devShellPackage = pkgs.symlinkJoin {
           name = "dev-shell-package";
-
-          # buildEnv properly handles combining all outputs (like bin, out, etc.)
           paths = [
             (pkgs.buildEnv {
               name = "dev-shell-env";
@@ -197,9 +204,16 @@
         in
         {
           packages.default = devShellPackage;
+          packages.ci = ciShellPackage;
 
           devShells.default = pkgs.mkShell {
             buildInputs = [ devShellPackage ];
+            shellHook = ''
+            '';
+          };
+
+          devShells.ci = pkgs.mkShell {
+            buildInputs = [ ciShellPackage ];
             shellHook = ''
             '';
           };

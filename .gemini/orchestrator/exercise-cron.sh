@@ -4,7 +4,7 @@
 set -euo pipefail
 
 show_help() {
-  cat << EOF
+  cat <<EOF
 Usage: exercise-cron.sh [options]
 
 Wrapper script to exercise models in the correct environment for headless cron execution.
@@ -19,7 +19,7 @@ EOF
 # (specifically checking for -h/--help) and does not support multi-argument shifting.
 parse_args() {
   case "${1:-}" in
-    -h|--help)
+    -h | --help)
       show_help
       exit 0
       ;;
@@ -41,7 +41,10 @@ run_exercise() {
   cd "${project_dir}"
 
   # Source environment variables for headless cron execution
-  if [[ -f ".variables" ]]; then
+  if [[ -f ".dev/variables.sh" ]]; then
+    # shellcheck disable=SC1091,SC1090
+    source .dev/variables.sh
+  elif [[ -f ".variables" ]]; then
     # shellcheck disable=SC1091,SC1090
     source .variables
   fi

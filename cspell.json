@@ -16,6 +16,7 @@
     "go.mod",
     "go.sum",
     "flake.lock",
+    ".dev/flake.lock",
     "test/**",
     "tools/**",
     "examples/**",

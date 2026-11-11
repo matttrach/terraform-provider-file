@@ -11,8 +11,14 @@ const execFileAsync = promisify(execFile);
 const repoRoot = path.resolve(fileURLToPath(new URL('../../../../', import.meta.url)));
 
 async function runGitMessage(args, env = {}, cwd = repoRoot) {
+  const functionsPath = path.join(repoRoot, '.dev/functions.sh');
+  const fallbackPath = path.join(repoRoot, '.functions');
   const script = `
-    . "${path.join(repoRoot, '.functions')}"
+    if [[ -f "${functionsPath}" ]]; then
+      . "${functionsPath}"
+    else
+      . "${fallbackPath}"
+    fi
     git_message "$@"
   `;
   return execFileAsync('bash', ['-c', script, 'git_message', ...args], {

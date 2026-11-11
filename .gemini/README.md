@@ -59,6 +59,11 @@ Optional extended targets (with automated fallback to core targets in `test.js` 
 
 - `flake.nix` & `flake.lock`: Must supply `nodejs_24`, `gemini-cli`, `gh`, `git`, `make`, and repository-specific toolchains.
 - `.envrc`: Must activate the Nix shell and export `GEMINI_SYSTEM_MD=.gemini/system.md`.
+- Personal Authentication: Append personal Gemini authentication variables to `.rcs`:
+
+  ```bash
+  echo 'source ~/.config/gemini/default # add personal gemini auth vars' >> .rcs
+  ```
 
 ### C3: Git and Plan Management Contract
 
