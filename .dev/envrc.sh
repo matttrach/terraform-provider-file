@@ -67,7 +67,9 @@ if [[ "${DEV_NATIVE:-0}" != "1" && "${DEV_CONTAINER:-1}" == "1" ]]; then
 fi
 
 if [[ "${CONTAINER_ACTIVE}" == "true" ]]; then
-  exec "${DEV_DIR}/container-run.sh" "$@"
+  "${DEV_DIR}/container-run.sh" "$@"
+  # shellcheck disable=SC2317
+  return 0 2>/dev/null || exit 0
 fi
 
 # Native Nix environment workflow
@@ -75,9 +77,6 @@ echo "Entering Environment..."
 profile="$(get_profile)"
 mkdir -p "$(dirname "${profile}")" 2>/dev/null || true
 export NIX_PROFILE="${profile}"
-
-echo "Updating Nix Cache..."
-nf flake update --flake "${DEV_DIR}" 2>/dev/null || true
 
 echo "Adding Nix Profile..."
 nf profile add "${DEV_DIR}" --profile "${profile}" 2>/dev/null || true

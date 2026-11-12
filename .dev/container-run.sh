@@ -8,17 +8,17 @@ set -euo pipefail
 CI_IMAGE="${DEV_CONTAINER_IMAGE:-ghcr.io/rancher/ci-image/nix:20260603-18}"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
 
-# Verify container runtime
+# Verify container runtime daemon is reachable
 CONTAINER_RUNTIME=""
 for runtime in docker podman; do
-  if command -v "${runtime}" >/dev/null 2>&1; then
+  if command -v "${runtime}" >/dev/null 2>&1 && "${runtime}" info >/dev/null 2>&1; then
     CONTAINER_RUNTIME="${runtime}"
     break
   fi
 done
 
 if [[ -z "${CONTAINER_RUNTIME}" ]]; then
-  echo "Error: Neither docker nor podman found in PATH." >&2
+  echo "Error: Neither docker nor podman daemon is running and reachable." >&2
   exit 1
 fi
 
@@ -30,7 +30,7 @@ for var in \
   ANTHROPIC_API_KEY \
   TF_IN_AUTOMATION; do
   if [[ -n "${!var:-}" ]]; then
-    ENV_ARGS+=("-e" "${var}=${!var}")
+    ENV_ARGS+=("-e" "${var}")
   fi
 done
 
@@ -50,7 +50,7 @@ if [[ $# -gt 0 ]]; then
     "${ENV_ARGS[@]}" \
     "${SSH_ARGS[@]}" \
     "${CI_IMAGE}" \
-    bash -c 'if [[ -f "/workspace/.dev/rc.sh" ]]; then source "/workspace/.dev/rc.sh"; fi; exec nix develop /workspace/.dev#default --command "$@"' -- "$@"
+    nix develop /workspace/.dev#default --command bash -c 'if [[ -f "/workspace/.dev/rc.sh" ]]; then source "/workspace/.dev/rc.sh"; fi; exec "$@"' -- "$@"
 else
   exec "${CONTAINER_RUNTIME}" run --rm -it \
     -v "${REPO_ROOT}:/workspace" \
@@ -60,5 +60,5 @@ else
     "${ENV_ARGS[@]}" \
     "${SSH_ARGS[@]}" \
     "${CI_IMAGE}" \
-    bash -c 'if [[ -f "/workspace/.dev/rc.sh" ]]; then source "/workspace/.dev/rc.sh"; fi; exec nix develop /workspace/.dev#default'
+    nix develop /workspace/.dev#default --command bash --rcfile /workspace/.dev/rc.sh
 fi
