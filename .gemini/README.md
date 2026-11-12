@@ -25,7 +25,7 @@ When copying this `.gemini/` directory into a repository that previously used le
 ### Safe to Delete from Host Repository
 
 1. `agent-scripts/`: Delete the entire directory. All universal orchestrator tools and libraries now reside under `.gemini/orchestrator/`.
-2. `docs/development/`: Delete the entire directory. All legacy development process blueprints, Diátaxis TOML rulebooks, and documentation created to box agents into multi-step constraints are obsolete. The orchestrator drives agents on single scoped tasks with direct test and linter validation backpressure.
+2. `docs/development/`: Delete the entire directory. All legacy development process blueprints, Diátaxis TOML rule books, and documentation created to box agents into multi-step constraints are obsolete. The orchestrator drives agents on single scoped tasks with direct test and linter validation backpressure.
 3. Documentation around hooks: Delete all legacy documentation or guides attempting to box agents into manual hook workflows. Enforcer hooks are replaced by single-task orchestrator pipelines.
 4. `compile-docs.js` and `docs/docs-compiled.json`: Delete. The orchestrator now injects context and backpressure directly via the Ralph loop without compiling documentation to JSON indexes.
 5. Obsolete helper copies: Delete root or `agent-scripts` copies of `update-action-versions.sh`, `update-modules.sh`, `run-in-nix.sh`, and `cleanup-data.js`.
@@ -57,8 +57,9 @@ Optional extended targets (with automated fallback to core targets in `test.js` 
 
 ### C2: Tooling & Environment Contract
 
-- `flake.nix` & `flake.lock`: Must supply `nodejs_24`, `gemini-cli`, `gh`, `git`, `make`, and repository-specific toolchains.
-- `.envrc`: Must activate the Nix shell and export `GEMINI_SYSTEM_MD=.gemini/system.md`.
+- `.dev/flake.nix` & `.dev/flake.lock`: Must supply `nodejs_24`, `gemini-cli`, `gh`, `git`, `make`, and repository-specific toolchains.
+- `.envrc`: Must delegate to `.dev/envrc.sh` and export `GEMINI_SYSTEM_MD=.gemini/system.md`.
+- Personal Authentication: Place personal Gemini authentication variables in `~/.config/gemini/default` or `.dev/rc.local.sh`, which are automatically sourced by `.dev/rc.sh`.
 
 ### C3: Git and Plan Management Contract
 

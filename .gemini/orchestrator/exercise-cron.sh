@@ -4,7 +4,7 @@
 set -euo pipefail
 
 show_help() {
-  cat << EOF
+  cat <<EOF
 Usage: exercise-cron.sh [options]
 
 Wrapper script to exercise models in the correct environment for headless cron execution.
@@ -19,7 +19,7 @@ EOF
 # (specifically checking for -h/--help) and does not support multi-argument shifting.
 parse_args() {
   case "${1:-}" in
-    -h|--help)
+    -h | --help)
       show_help
       exit 0
       ;;
@@ -37,18 +37,22 @@ run_exercise() {
   local script_dir
   script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
   local project_dir="${script_dir}/.."
-
-  cd "${project_dir}"
+  local repo_root="${project_dir}/.."
 
   # Source environment variables for headless cron execution
-  if [[ -f ".variables" ]]; then
+  if [[ -f "${repo_root}/.dev/variables.sh" ]]; then
     # shellcheck disable=SC1091,SC1090
-    source .variables
+    source "${repo_root}/.dev/variables.sh"
+  elif [[ -f "${repo_root}/.variables" ]]; then
+    # shellcheck disable=SC1091,SC1090
+    source "${repo_root}/.variables"
   fi
   if [[ -f "${HOME}/.config/gemini/default" ]]; then
     # shellcheck disable=SC1091,SC1090
     source "${HOME}/.config/gemini/default"
   fi
+
+  cd "${project_dir}"
 
   # Execute exercise-agents.js directly
   node "${script_dir}/exercise-agents.js"

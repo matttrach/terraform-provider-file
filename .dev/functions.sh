@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+#
+# Helper: functions.sh
+# Description: Development utility functions and git prompt helpers.
 
 # get current branch in git repo
 git_status() {
