@@ -123,6 +123,7 @@
         ciPackages = [
           leftovers
           terraform
+          github-copilot-cli
         ] ++ (with pkgs; [
           actionlint
           age
@@ -171,10 +172,8 @@
         devPackages = ciPackages ++ [
           initNodeEnv
           gemini-cli
-        ] ++ ([
           claude-code
-          github-copilot-cli
-        ]) ++ (if pkgs.stdenv.hostPlatform.isDarwin then [
+        ] ++ (if pkgs.stdenv.hostPlatform.isDarwin then [
           macVscode
           swVers
           pkgs.pinentry_mac

@@ -25,8 +25,8 @@ The `.dev` directory groups all environment configuration files into a single po
 
 Nix packages are split into distinct shell environments:
 
-- **`devShells.ci`**: Pure CI toolchain containing compilers, linters, test runners, and formatters (Go, Terraform, gotestsum, actionlint, cspell, eslint, golangci-lint, shellcheck, shfmt, prettier, gitleaks, trivy).
-- **`devShells.default`**: Complete CI toolchain plus interactive developer tooling (`gemini-cli`, Claude Code, GitHub Copilot CLI, Node environment initialization, and Darwin-specific utilities).
+- **`devShells.ci`**: Pure CI toolchain containing compilers, linters, test runners, formatters, and CI automation tooling (Go, Terraform, gotestsum, actionlint, cspell, eslint, golangci-lint, shellcheck, shfmt, prettier, gitleaks, trivy, github-copilot-cli).
+- **`devShells.default`**: Complete CI toolchain plus interactive developer tooling (`gemini-cli`, Claude Code, Node environment initialization, and Darwin-specific utilities).
 
 ### 2. Container-First Workstation Isolation
 
