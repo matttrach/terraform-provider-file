@@ -1,0 +1,69 @@
+name: pr-approval-proxy
+
+on:
+  pull_request_review:
+    types: [submitted]
+  issue_comment:
+    types: [created]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.event.issue.number }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  pull-requests: write
+  id-token: write
+
+jobs:
+  setup:
+    name: 'Check Configuration'
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/rancher/ci-image/nix:20260603-18
+    outputs:
+      feature_pr_approval_proxy: ${{ steps.parse-config.outputs.feature_pr_approval_proxy }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Parse Configuration
+        id: parse-config
+        run: .github/workflows/scripts/nix-run.sh bash .github/workflows/scripts/parse-config.sh .github/repo-config.yml
+
+  proxy-approve:
+    name: 'Proxy Approve PR'
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Graceful Passing Check
+        if: ${{ needs.setup.outputs.feature_pr_approval_proxy != 'true' }}
+        run: |
+          echo "PR approval proxy feature is disabled in .github/repo-config.yml. Passing gracefully."
+          exit 0
+
+      - name: Get App Token from Vault
+        id: get-app-token
+        if: ${{ needs.setup.outputs.feature_pr_approval_proxy == 'true' }}
+        # https://github.com/rancher-eio/read-vault-secrets/commits
+        uses: rancher-eio/read-vault-secrets@4c8f4e741954651c502bb7739c46ae1bad26b44d # @main
+        with:
+          secrets: |
+            github/token/rancher--terraform-provider-file--pull_requests--write token | GITHUB_APP_TOKEN
+
+      - name: Execute Proxy Approval
+        id: execute-proxy-approval
+        if: ${{ needs.setup.outputs.feature_pr_approval_proxy == 'true' }}
+        # https://github.com/actions/github-script/releases
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          FEATURE_PR_APPROVAL_PROXY: ${{ needs.setup.outputs.feature_pr_approval_proxy }}
+          PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
+        with:
+          github-token: ${{ env.GITHUB_APP_TOKEN }}
+          script: |
+            const scriptPath = `${process.env.GITHUB_WORKSPACE}/.github/workflows/scripts/proxy-approve-pr.js`;
+            const { default: script } = await import(scriptPath);
+            await script({github, context, core, process});

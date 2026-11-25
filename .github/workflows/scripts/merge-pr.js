@@ -2,7 +2,7 @@
 // Conforms to github-script.instructions.md guidelines.
 
 import { execFileSync } from 'child_process';
-import fs from 'node:fs/promises';
+import { loadComponents, resolveHighestComponent } from './component-resolver.js';
 
 const COMMENT_SIGNATURE = '<!-- auto-merge-verification-signature -->';
 
@@ -53,8 +53,12 @@ export default async ({ github, context, core, process }) => {
     }),
   );
 
-  const affectsProduct = files.some((f) => f.filename.startsWith('internal/'));
-  core.info(`PR #${prNumber} affects product (contains changes inside 'internal/'): ${affectsProduct}`);
+  const components = loadComponents();
+  const filePaths = files.map((f) => f.filename);
+  const { highestComponent } = resolveHighestComponent(filePaths, components);
+  core.info(
+    `PR #${prNumber} highest component in hierarchy: ${highestComponent.name} (allowed types: ${highestComponent.allowed_types.join(', ')})`,
+  );
 
   core.info(`Fetching PR #${prNumber} commits to craft squash message...`);
   const commits = await withRetry(core, () =>
@@ -75,83 +79,58 @@ export default async ({ github, context, core, process }) => {
     sha,
   };
 
-  let conventionalMsg = null;
-  let validationError = '';
-  let isValid = false;
-  const maxTries = 3;
-
-  for (let attempt = 1; attempt <= maxTries; attempt++) {
-    core.info(`Generating Conventional Commit squash message (Attempt ${attempt}/${maxTries})...`);
-    conventionalMsg = await craftSquashCommitMessage({
-      core,
-      commitsList,
-      affectsProduct,
-      process,
-      feedback: validationError,
-    });
-
-    if (!conventionalMsg) {
-      validationError = 'Failed to generate any response from Copilot.';
-      core.warning(`Attempt ${attempt}/${maxTries} failed to obtain response from Copilot.`);
-      continue;
-    }
-
-    const { valid, reason } = validateCommitTitle(conventionalMsg.commitTitle, affectsProduct);
-    if (valid) {
-      isValid = true;
-      break;
-    } else {
-      core.warning(
-        `Attempt ${attempt}/${maxTries} generated INVALID title "${conventionalMsg.commitTitle}". Reason: ${reason}`,
-      );
-      validationError = `The title you generated ("${conventionalMsg.commitTitle}") was rejected for the following reason:\n${reason}\n\nPlease regenerate the commit message. Ensure you strictly adhere to the rules and fix the error above.`;
-    }
+  // Build conventional squash commit title and message without Copilot
+  let titleCandidate = pr.title ? pr.title.trim() : '';
+  const initialMsg = commits[0]?.commit?.message?.split('\n')[0].trim();
+  if (!titleCandidate && initialMsg) {
+    titleCandidate = initialMsg;
+  }
+  if (!titleCandidate) {
+    titleCandidate = `squash PR #${prNumber}`;
   }
 
-  if (isValid && conventionalMsg) {
-    mergeParams.commit_title = conventionalMsg.commitTitle;
-    mergeParams.commit_message = conventionalMsg.commitMessage;
-    core.info(
-      `Generated AI Conventional Squash Message is VALID:\nTitle: ${mergeParams.commit_title}\nBody:\n${mergeParams.commit_message}`,
-    );
+  let commitTitle = titleCandidate;
+  const match = commitTitle.match(/^([a-z0-9_-]+)(?:\([^)]+\))?(!?):/i);
+  const allowedTypes = (highestComponent.allowed_types || []).map((t) => t.toLowerCase());
+
+  if (!match) {
+    commitTitle = `${allowedTypes[0]}: ${commitTitle}`;
   } else {
-    // Fallback: Default to the initial commit message, appending "fix: " if it doesn't already have a type
-    const initialMsgFull = commits[0]?.commit?.message || `squash PR #${prNumber}`;
-    const msgLines = initialMsgFull.split('\n');
-    let defaultTitle = msgLines[0].trim();
-    const defaultBodyLines = msgLines.slice(1);
+    const type = match[1].toLowerCase();
+    const hasExclamation = match[2] === '!';
 
-    defaultBodyLines.push('');
-    defaultBodyLines.push('Original Commits:');
-    defaultBodyLines.push(commitsList);
-    const defaultBody = defaultBodyLines.join('\n').trim();
-
-    const CONVENTIONAL_COMMIT_REGEXP =
-      /^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert|env|dev)(?:\([^)]+\))?(!?): .+/i;
-    const hasType = CONVENTIONAL_COMMIT_REGEXP.test(defaultTitle);
-    if (!hasType) {
-      defaultTitle = `fix: ${defaultTitle}`;
-    } else if (!affectsProduct) {
-      const typeMatch = defaultTitle.match(/^([a-z]+)(?:\([^)]+\))?(!?):/i);
-      if (typeMatch) {
-        const type = typeMatch[1].toLowerCase();
-        const hasExclamation = typeMatch[2] === '!';
-
-        if (type === 'feat' || type === 'refactor' || hasExclamation) {
-          defaultTitle = defaultTitle.replace(/^([a-z]+)/i, 'chore').replace('!:', ':');
-          core.warning(
-            `Downgraded fallback commit title to "${defaultTitle}" to prevent incorrect SemVer bump on non-product change.`,
-          );
-        }
-      }
+    if (!allowedTypes.includes(type)) {
+      commitTitle = commitTitle.replace(/^([a-z0-9_-]+)/i, allowedTypes[0]);
+      core.warning(
+        `Adjusted commit title prefix to "${allowedTypes[0]}" to match highest component "${highestComponent.name}".`,
+      );
     }
-
-    mergeParams.commit_title = defaultTitle;
-    mergeParams.commit_message = defaultBody;
-    core.info(
-      `Using safe, initial-commit conventional fallback message:\nTitle: ${mergeParams.commit_title}\nBody:\n${mergeParams.commit_message}`,
-    );
+    if (!highestComponent.is_product && hasExclamation) {
+      commitTitle = commitTitle.replace('!:', ':');
+      core.warning(
+        `Removed breaking change "!" from commit title on non-product component "${highestComponent.name}".`,
+      );
+    }
   }
+
+  // Construct commit message body
+  const bodyParts = [];
+  if (pr.body && pr.body.trim()) {
+    bodyParts.push(pr.body.trim());
+  }
+  if (commits.length > 1) {
+    bodyParts.push('');
+    bodyParts.push('Original Commits:');
+    bodyParts.push(commitsList);
+  }
+  const commitMessage = bodyParts.join('\n').trim();
+
+  mergeParams.commit_title = commitTitle;
+  mergeParams.commit_message = commitMessage;
+
+  core.info(
+    `Conventional Squash Commit Message:\nTitle: ${mergeParams.commit_title}\nBody:\n${mergeParams.commit_message}`,
+  );
 
   // Delete warning comments before merging
   await deleteBotCommentIfExists({ github, core, owner, repo, prNumber: parseInt(prNumber, 10) });
@@ -200,107 +179,6 @@ export default async ({ github, context, core, process }) => {
     }
   }
 };
-
-/**
- * Invokes the Copilot CLI inside the Nix environment to consolidate commit history into a high-quality Conventional Commit.
- */
-async function craftSquashCommitMessage({ core, commitsList, affectsProduct, process, feedback }) {
-  core.info('Invoking Copilot Agent CLI to craft Conventional Squash Commit Message...');
-
-  let safetyDirective;
-  if (!affectsProduct) {
-    safetyDirective = `CRITICAL REGULATORY CONSTRAINT: None of the files modified in this PR are inside the 'internal/' folder. This is a non-product change (e.g. docs, tests, CI workflows).
-Therefore, you MUST NOT use the 'feat' or 'refactor' commit types, and you MUST NOT use the '!' breaking-change indicator (which incorrectly trigger minor/major semver bumps on release-please).
-Instead, you MUST use 'chore', 'ci', 'docs', 'style', 'test', or 'fix' as the commit type (e.g. 'chore: update workflows' or 'test: add unit coverage').`;
-  } else {
-    safetyDirective = `Allowed types include: 'fix', 'feat', 'refactor', 'chore', 'docs', 'style', 'test'.
-Use 'feat' for new features, 'fix' for bug fixes, and 'refactor' for code restructurings. Use '!' (e.g. 'feat!:') if there is a breaking change.`;
-  }
-
-  let feedbackSection = '';
-  if (feedback) {
-    feedbackSection = `\n\n⚠️ PREVIOUS ATTEMPT FEEDBACK:\n${feedback}\n\nPlease correct your formatting and try again.`;
-  }
-
-  const prompt = `You are an expert Conventional Commits writer.
-Given the following list of commits from a pull request, draft a clean, high-quality, consolidated Conventional Commit title and body for the final squash merge commit on main.
-
-The first line of your response MUST be exactly the subject line matching the Conventional Commits format: 'type: description' (e.g. 'feat: support dynamic login').
-
-${safetyDirective}${feedbackSection}
-
-Don't use component scopes, just use 'type: description' or 'type!: description'.
-Subject lines must not exceed 70 characters due to a GitHub limitation.
-The rest of your response must be a clean, bulleted explanation of the detailed changes, separated from the title by a blank line. Do not output any markdown code blocks, prefixes like "Commit message:", or other conversational filler. Just the direct title and body.
-
-Commits in PR:
-${commitsList}
-`;
-
-  try {
-    const promptFile = '.copilot-prompt.txt';
-    await fs.writeFile(promptFile, prompt);
-
-    const nixRunScript = `${process.env.GITHUB_WORKSPACE}/.github/workflows/scripts/nix-run.sh`;
-    const promptContent = (await fs.readFile(promptFile, 'utf8')) || '';
-    const args = ['copilot', '-s', '--yolo', '-p', promptContent];
-    const output = execFileSync(nixRunScript, args, {
-      env: {
-        ...process.env,
-        GITHUB_TOKEN: process.env.GITHUB_TOKEN,
-        COPILOT_GITHUB_TOKEN: process.env.GITHUB_TOKEN,
-      },
-    })
-      .toString()
-      .trim();
-
-    await fs.rm(promptFile, { force: true });
-
-    if (!output) {
-      throw new Error('Copilot returned an empty response');
-    }
-
-    const lines = output.split('\n');
-    const commitTitle = lines[0].trim();
-    const commitMessage = lines.slice(1).join('\n').trim();
-
-    return { commitTitle, commitMessage };
-  } catch (err) {
-    core.warning(`Copilot message generation failed: ${err.message}. Falling back to default.`);
-    return null;
-  }
-}
-
-/**
- * Validates a single commit title against Conventional Commits and strict product-boundary semver rules.
- */
-function validateCommitTitle(title, affectsProduct) {
-  const CONVENTIONAL_COMMIT_REGEXP =
-    /^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert|env|dev)(?:\([^)]+\))?(!?): .+/i;
-
-  if (!CONVENTIONAL_COMMIT_REGEXP.test(title)) {
-    return {
-      valid: false,
-      reason:
-        'Commit title does not follow Conventional Commits format. Expected "type: description" or "type(scope): description".',
-    };
-  }
-
-  const match = title.match(/^([a-z]+)(?:\([^)]+\))?(!?):/i);
-  const type = match[1].toLowerCase();
-  const hasExclamation = match[2] === '!';
-
-  if (!affectsProduct) {
-    if (type === 'feat' || type === 'refactor' || hasExclamation) {
-      return {
-        valid: false,
-        reason: `Non-product change (outside 'internal/') must NOT use 'feat', 'refactor', or '!' breaking-change indicators (which trigger incorrect minor/major semver bumps on release-please).`,
-      };
-    }
-  }
-
-  return { valid: true };
-}
 
 /**
  * Deletes the warning comment if it exists.

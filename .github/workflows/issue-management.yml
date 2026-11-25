@@ -1,0 +1,83 @@
+name: issue-management
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, closed]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  pull-requests: read
+  issues: write
+  id-token: write
+
+jobs:
+  setup:
+    name: 'Check Configuration'
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/rancher/ci-image/nix:20260603-18
+    outputs:
+      feature_issue_management: ${{ steps.parse-config.outputs.feature_issue_management }}
+      backport_branches: ${{ steps.parse-config.outputs.backport_branches }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Parse Configuration
+        id: parse-config
+        run: .github/workflows/scripts/nix-run.sh bash .github/workflows/scripts/parse-config.sh .github/repo-config.yml
+
+  manage-issue:
+    name: 'Manage Project Issue'
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Graceful Passing Check
+        if: ${{ needs.setup.outputs.feature_issue_management != 'true' }}
+        run: |
+          echo "Issue management feature is disabled in .github/repo-config.yml. Passing gracefully."
+          exit 0
+
+      - name: Determine Target Status
+        id: target-status
+        if: ${{ needs.setup.outputs.feature_issue_management == 'true' }}
+        run: |
+          EVENT_ACTION="${{ github.event.action }}"
+          IS_MERGED="${{ github.event.pull_request.merged }}"
+
+          if [ "${EVENT_ACTION}" = "closed" ] && [ "${IS_MERGED}" = "true" ]; then
+            echo "status=Ready for QA" >> "$GITHUB_OUTPUT"
+          else
+            echo "status=In Review" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Get Org Project Token from Vault
+        id: get-project-token
+        if: ${{ needs.setup.outputs.feature_issue_management == 'true' }}
+        # https://github.com/rancher-eio/read-vault-secrets/commits
+        uses: rancher-eio/read-vault-secrets@4c8f4e741954651c502bb7739c46ae1bad26b44d # @main
+        with:
+          secrets: |
+            github/token/rancher--org_projects--write token | ORG_PROJECT_TOKEN
+
+      - name: Update Issue Status
+        id: update-status
+        if: ${{ needs.setup.outputs.feature_issue_management == 'true' }}
+        # https://github.com/actions/github-script/releases
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          FEATURE_ISSUE_MANAGEMENT: ${{ needs.setup.outputs.feature_issue_management }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          TARGET_STATUS: ${{ steps.target-status.outputs.status }}
+        with:
+          github-token: ${{ env.ORG_PROJECT_TOKEN }}
+          script: |
+            const scriptPath = `${process.env.GITHUB_WORKSPACE}/.github/workflows/scripts/manage-project-issue.js`;
+            const { default: script } = await import(scriptPath);
+            await script({github, context, core, process});

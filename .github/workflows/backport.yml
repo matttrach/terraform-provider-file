@@ -1,0 +1,75 @@
+name: Backport
+
+on:
+  pull_request:
+    types: [closed]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+  id-token: write
+
+jobs:
+  setup:
+    name: 'Check Configuration'
+    if: github.event_name == 'workflow_dispatch' || (github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main')
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/rancher/ci-image/nix:20260603-18
+    outputs:
+      feature_automatic_backporting: ${{ steps.parse-config.outputs.feature_automatic_backporting }}
+      backport_branches: ${{ steps.parse-config.outputs.backport_branches }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Parse Configuration
+        id: parse-config
+        run: .github/workflows/scripts/nix-run.sh bash .github/workflows/scripts/parse-config.sh .github/repo-config.yml
+
+  backport:
+    name: 'Execute Backports'
+    needs: setup
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/rancher/ci-image/nix:20260603-18
+    steps:
+      - name: Graceful Passing Check
+        if: ${{ needs.setup.outputs.feature_automatic_backporting != 'true' }}
+        run: |
+          echo "Automatic backporting is disabled in .github/repo-config.yml. Passing gracefully."
+          exit 0
+
+      - name: Checkout Repository
+        if: ${{ needs.setup.outputs.feature_automatic_backporting == 'true' }}
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Get Backport Token from Vault
+        id: get-token
+        if: ${{ needs.setup.outputs.feature_automatic_backporting == 'true' }}
+        # https://github.com/rancher-eio/read-vault-secrets/commits
+        uses: rancher-eio/read-vault-secrets@4c8f4e741954651c502bb7739c46ae1bad26b44d # @main
+        with:
+          secrets: |
+            github/token/rancher--terraform-provider-file--pull_requests--write token | GITHUB_APP_TOKEN
+
+      - name: Execute Cherry-pick and Open PRs
+        if: ${{ needs.setup.outputs.feature_automatic_backporting == 'true' }}
+        # https://github.com/actions/github-script/releases
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          FEATURE_AUTOMATIC_BACKPORTING: ${{ needs.setup.outputs.feature_automatic_backporting }}
+          BACKPORT_BRANCHES: ${{ needs.setup.outputs.backport_branches }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        with:
+          github-token: ${{ env.GITHUB_APP_TOKEN || secrets.GITHUB_TOKEN }}
+          script: |
+            const scriptPath = `${process.env.GITHUB_WORKSPACE}/.github/workflows/scripts/backport.js`;
+            const { default: script } = await import(scriptPath);
+            await script({github, context, core, process});

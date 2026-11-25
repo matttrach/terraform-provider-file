@@ -23,7 +23,9 @@ Modes:
   prettier        Verify formatting of JS, JSON, and MD files.
   markdownlint    Validate Markdown semantic structure.
   golangci-lint   Check Go source code against static analysis rules.
+  python          Lint Python source files.
   cspell          Verify spelling across codebase files.
+  auto            Auto-detect languages (Go, Node, Python, Terraform) + workflows.
   all             Execute all above verification suites (default).
 
 Options:
@@ -40,7 +42,7 @@ run_terraform() {
 
 run_actionlint() {
   echo "==> Linting GitHub workflows..."
-  actionlint -ignore 'unknown permission scope "copilot-requests"'
+  actionlint
 }
 
 run_eslint() {
@@ -194,6 +196,61 @@ run_cspell() {
   cspell lint --no-progress "**/*"
 }
 
+run_python() {
+  echo "==> Running Python static analysis..."
+  if command -v ruff >/dev/null 2>&1; then
+    ruff check .
+  elif command -v flake8 >/dev/null 2>&1; then
+    flake8 .
+  elif command -v python3 >/dev/null 2>&1; then
+    echo "Checking python compilation syntax..."
+    python3 -m compileall -q .
+  else
+    echo "Notice: Python files detected, but no python linter or interpreter is installed in PATH."
+  fi
+}
+
+run_auto_detect() {
+  echo "==> Auto-detecting languages and frameworks for static analysis..."
+
+  # Always run workflow & script checks
+  run_actionlint
+  run_shellcheck
+  run_shfmt "${FIX_MODE}"
+  run_gitleaks
+  run_cspell
+
+  # Markdown
+  if [[ -n "$(find . -maxdepth 3 -name "*.md" -not -path "*/.git/*" -not -path "*/node_modules/*" 2>/dev/null | head -n 1)" ]]; then
+    run_markdownlint
+  fi
+
+  # Go
+  if [[ -f "go.mod" || -n "$(git ls-files "*.go" 2>/dev/null | head -n 1)" ]]; then
+    echo "==> Detected Go codebase."
+    run_golangci_lint "${FIX_MODE}"
+  fi
+
+  # Node / JS
+  if [[ -f "package.json" || -n "$(git ls-files "*.js" "*.mjs" "*.ts" 2>/dev/null | head -n 1)" ]]; then
+    echo "==> Detected JavaScript/TypeScript codebase."
+    run_eslint
+    run_prettier "${FIX_MODE}"
+  fi
+
+  # Terraform
+  if [[ -n "$(git ls-files "*.tf" 2>/dev/null | head -n 1)" ]]; then
+    echo "==> Detected Terraform configurations."
+    run_terraform
+  fi
+
+  # Python
+  if [[ -f "requirements.txt" || -f "pyproject.toml" || -n "$(git ls-files "*.py" 2>/dev/null | head -n 1)" ]]; then
+    echo "==> Detected Python codebase."
+    run_python
+  fi
+}
+
 parse_args() {
   MODE="all"
   FIX_MODE="false"
@@ -254,6 +311,9 @@ main() {
     golangci-lint)
       run_golangci_lint "${FIX_MODE}"
       ;;
+    python)
+      run_python
+      ;;
     tests)
       run_tests_lint
       ;;
@@ -262,6 +322,9 @@ main() {
       ;;
     cspell)
       run_cspell
+      ;;
+    auto)
+      run_auto_detect
       ;;
     all)
       run_terraform

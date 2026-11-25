@@ -44,6 +44,42 @@ jobs:
             fi
           fi
 
+  setup:
+    name: 'Setup Configuration'
+    needs: enforce-fork-contribution
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/rancher/ci-image/nix:20260603-18
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    outputs:
+      feature_automatic_changelog_and_release: ${{ steps.parse-config.outputs.feature_automatic_changelog_and_release }}
+      feature_testing_unit: ${{ steps.parse-config.outputs.feature_testing_unit }}
+      feature_testing_integration: ${{ steps.parse-config.outputs.feature_testing_integration }}
+      feature_testing_e2e: ${{ steps.parse-config.outputs.feature_testing_e2e }}
+      feature_static_analysis_auto_detect: ${{ steps.parse-config.outputs.feature_static_analysis_auto_detect }}
+      feature_pr_approval_proxy: ${{ steps.parse-config.outputs.feature_pr_approval_proxy }}
+      feature_issue_management: ${{ steps.parse-config.outputs.feature_issue_management }}
+      feature_automatic_backporting: ${{ steps.parse-config.outputs.feature_automatic_backporting }}
+      feature_automatic_rc_releases: ${{ steps.parse-config.outputs.feature_automatic_rc_releases }}
+      matrix_testing_unit: ${{ steps.parse-config.outputs.matrix_testing_unit }}
+      matrix_testing_integration: ${{ steps.parse-config.outputs.matrix_testing_integration }}
+      matrix_testing_e2e: ${{ steps.parse-config.outputs.matrix_testing_e2e }}
+      backport_branches: ${{ steps.parse-config.outputs.backport_branches }}
+      rc_release_branches: ${{ steps.parse-config.outputs.rc_release_branches }}
+      components_config: ${{ steps.parse-config.outputs.components_config }}
+    steps:
+      - name: Checkout Repository
+        id: checkout-repository
+        # https://github.com/actions/checkout/releases
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Parse Configuration
+        id: parse-config
+        run: .github/workflows/scripts/nix-run.sh bash .github/workflows/scripts/parse-config.sh .github/repo-config.yml
+
   terraform:
     name: 'Terraform'
     needs: enforce-fork-contribution
@@ -235,7 +271,7 @@ jobs:
 
   validate-commit-message:
     name: 'Validate Commit Message'
-    needs: enforce-fork-contribution
+    needs: [enforce-fork-contribution, setup]
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/rancher/ci-image/nix:20260603-18
@@ -254,8 +290,15 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           PR_NUMBER: ${{ github.event.number }}
+          ENABLED: ${{ needs.setup.outputs.feature_automatic_changelog_and_release }}
+          COMPONENTS_CONFIG: ${{ needs.setup.outputs.components_config }}
+          BACKPORT_BRANCHES: ${{ needs.setup.outputs.backport_branches }}
         with:
           script: |
+            if (process.env.ENABLED !== 'true') {
+              core.info('Automatic changelog and release feature is disabled in .github/repo-config.yml. Passing gracefully.');
+              return;
+            }
             const scriptPath = `${process.env.GITHUB_WORKSPACE}/.github/workflows/scripts/validate-commit-message.js`;
             const { default: script } = await import(scriptPath);
             await script({github, context, core, process});
@@ -323,13 +366,17 @@ jobs:
 
   unit-tests:
     name: 'Unit Tests'
-    needs: enforce-fork-contribution
+    needs: [enforce-fork-contribution, setup]
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/rancher/ci-image/nix:20260603-18
     timeout-minutes: 30
     permissions:
       contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(needs.setup.outputs.matrix_testing_unit) }}
     steps:
       - name: Checkout Repository
         id: checkout-repository
@@ -339,17 +386,55 @@ jobs:
           fetch-depth: 0
       - name: Run Unit Tests
         id: run-unit-tests
-        run: .github/workflows/scripts/nix-run.sh bash .github/workflows/scripts/test.sh unit
+        run: |
+          if [ "${{ matrix.enabled }}" = "false" ]; then
+            echo "Unit testing is disabled in .github/repo-config.yml. Passing gracefully."
+            exit 0
+          fi
+          .github/workflows/scripts/nix-run.sh bash -c "${{ matrix.command }}"
 
-  acceptance-tests:
-    name: 'Acceptance Tests (No Relay)'
-    needs: enforce-fork-contribution
+  integration-tests:
+    name: 'Integration Tests'
+    needs: [enforce-fork-contribution, setup]
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/rancher/ci-image/nix:20260603-18
     timeout-minutes: 30
     permissions:
       contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(needs.setup.outputs.matrix_testing_integration) }}
+    steps:
+      - name: Checkout Repository
+        id: checkout-repository
+        # https://github.com/actions/checkout/releases
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Run Integration Tests
+        id: run-int-tests
+        run: |
+          if [ "${{ matrix.enabled }}" = "false" ]; then
+            echo "Integration testing is disabled in .github/repo-config.yml. Passing gracefully."
+            exit 0
+          fi
+          .github/workflows/scripts/nix-run.sh bash -c "${{ matrix.command }}"
+
+  acceptance-tests:
+    name: 'Acceptance Tests (No Relay)'
+    needs: [enforce-fork-contribution, setup]
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/rancher/ci-image/nix:20260603-18
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(needs.setup.outputs.matrix_testing_e2e) }}
     steps:
       - name: Checkout Repository
         id: checkout-repository
@@ -359,4 +444,9 @@ jobs:
           fetch-depth: 0
       - name: Run Acceptance Tests
         id: run-acc-tests
-        run: .github/workflows/scripts/nix-run.sh bash .github/workflows/scripts/test.sh acc
+        run: |
+          if [ "${{ matrix.enabled }}" = "false" ]; then
+            echo "E2E testing is disabled in .github/repo-config.yml. Passing gracefully."
+            exit 0
+          fi
+          .github/workflows/scripts/nix-run.sh bash -c "${{ matrix.command }}"

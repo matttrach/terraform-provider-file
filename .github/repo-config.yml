@@ -1,0 +1,162 @@
+# Repository configuration for portable GitHub Actions architecture.
+# Defines feature flags, testing matrices, and integration options.
+
+version: '1.0'
+
+features:
+  # Automated changelog management via release-please and multi-language compilation/artifacts via goreleaser
+  automatic_changelog_and_release: true
+
+  # Tiered testing capabilities
+  testing:
+    unit: true
+    integration: false
+    e2e: true
+
+  # Static code analysis for languages (Go, Node, Python, etc.) and GitHub workflows
+  static_analysis:
+    auto_detect: true
+
+  # Proxy approval for PRs from non-traditional roles using Vault App Token
+  pr_approval_proxy: true
+
+  # Automated issue management in GitHub Organization Projects using Vault App Token
+  issue_management: false
+
+  # Automatic backporting of commits from main into release branches
+  automatic_backporting: false
+
+  # Automatic Release Candidate (RC) releases after successful E2E testing
+  automatic_rc_releases: false
+
+issue_management:
+  project_v2:
+    enabled: false
+    owner: null
+    number: null
+    project_id: null
+  tracking_issues:
+    enabled: false
+  release_completion:
+    transition_to_done: false
+
+testing:
+  unit:
+    matrix:
+      - name: 'unit-tests'
+        command: 'make test'
+  integration:
+    matrix:
+      - name: 'integration-tests'
+        command: 'true'
+  e2e:
+    matrix:
+      - name: 'acceptance-tests'
+        command: 'make testacc'
+
+# List of branches to backport commits to (when automatic_backporting is true)
+backport_branches: []
+
+# List of branches eligible for automatic RC releases (when automatic_rc_releases is true)
+rc_release_branches:
+  - 'main'
+
+# Codebase components with hierarchy priority (ordered from highest to lowest priority)
+# Used to validate PR/commit prefixes based on files modified.
+components:
+  - name: 'product'
+    description: 'Core product code (causes release-please SemVer bump)'
+    paths:
+      - 'internal/**'
+      - 'main.go'
+    exclude_paths:
+      - '**/*_test.go'
+    allowed_types:
+      - 'feat'
+      - 'fix'
+      - 'refactor'
+      - 'revert'
+    is_product: true
+
+  - name: 'product-docs'
+    description: 'Product documentation and examples'
+    paths:
+      - 'docs/**'
+      - 'examples/**'
+    allowed_types:
+      - 'docs'
+      - 'product-docs'
+
+  - name: 'e2e'
+    description: 'End-to-end acceptance tests'
+    paths:
+      - 'test/**'
+    allowed_types:
+      - 'e2e'
+      - 'test'
+
+  - name: 'integration'
+    description: 'Integration test suites'
+    paths:
+      - 'integration/**'
+    allowed_types:
+      - 'integration'
+      - 'test'
+
+  - name: 'unit'
+    description: 'Unit test files'
+    paths:
+      - '**/*_test.go'
+      - '**/*.test.js'
+    allowed_types:
+      - 'unit'
+      - 'test'
+
+  - name: 'ci'
+    description: 'GitHub Actions workflows and CI scripts'
+    paths:
+      - '.github/**'
+    allowed_types:
+      - 'ci'
+
+  - name: 'docs'
+    description: 'Repository level documentation'
+    paths:
+      - '*.md'
+      - 'LICENSE'
+    allowed_types:
+      - 'docs'
+
+  - name: 'dev'
+    description: 'Local development tools, linters, and agents'
+    paths:
+      - '.gemini/**'
+      - 'tools/**'
+      - 'GNUmakefile'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.*lint*'
+      - '.prettierrc'
+      - 'eslint.config.mjs'
+      - 'cspell.json'
+      - 'custom_words.txt'
+    allowed_types:
+      - 'dev'
+      - 'chore'
+
+  - name: 'env'
+    description: 'Hermetic container and Nix environment definitions'
+    paths:
+      - '.dev/**'
+      - '.envrc'
+      - 'flake.nix'
+      - 'flake.lock'
+    allowed_types:
+      - 'env'
+
+  - name: 'misc'
+    description: 'Miscellaneous root configuration files'
+    paths:
+      - '**'
+    allowed_types:
+      - 'chore'

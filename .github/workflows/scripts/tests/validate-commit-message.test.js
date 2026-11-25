@@ -75,7 +75,7 @@ test('validate-commit-message.js runner tests', async (t) => {
         if (method === github.rest.pulls.listCommits) {
           return [
             { commit: { message: 'feat: add internal provider feature' }, parents: [] },
-            { commit: { message: 'chore: minor updates' }, parents: [] },
+            { commit: { message: 'fix: minor updates' }, parents: [] },
           ];
         }
         if (method === github.rest.pulls.listFiles) {
@@ -137,7 +137,7 @@ test('validate-commit-message.js runner tests', async (t) => {
 
     await runner({ github, context, core, process: localProcess });
 
-    assert.ok(errors.some((e) => e.includes("must NOT use 'feat'")));
+    assert.ok(errors.some((e) => e.includes('not allowed for component "docs"')));
     assert.ok(failedMsg.includes('Commit message validation failed'));
   });
 });

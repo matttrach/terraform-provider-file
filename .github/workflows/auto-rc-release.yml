@@ -1,0 +1,146 @@
+name: Automatic RC Release
+
+on:
+  workflow_run:
+    workflows: ['Pull Request']
+    types: [completed]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref_name }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  setup:
+    name: 'Check Configuration'
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/rancher/ci-image/nix:20260603-18
+    outputs:
+      feature_automatic_rc_releases: ${{ steps.parse-config.outputs.feature_automatic_rc_releases }}
+      rc_release_branches: ${{ steps.parse-config.outputs.rc_release_branches }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Parse Configuration
+        id: parse-config
+        run: .github/workflows/scripts/nix-run.sh bash .github/workflows/scripts/parse-config.sh .github/repo-config.yml
+
+  auto-rc:
+    name: 'Create Automatic RC Release'
+    needs: setup
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/rancher/ci-image/nix:20260603-18
+    timeout-minutes: 30
+    steps:
+      - name: Graceful Passing Check
+        if: ${{ needs.setup.outputs.feature_automatic_rc_releases != 'true' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion != 'success') }}
+        run: |
+          echo "Automatic RC releases disabled or triggering workflow did not succeed. Passing gracefully."
+          exit 0
+
+      - name: Checkout Repository
+        if: ${{ needs.setup.outputs.feature_automatic_rc_releases == 'true' }}
+        # https://github.com/actions/checkout/releases
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Generate RC Tag
+        id: generate-rc-tag
+        if: ${{ needs.setup.outputs.feature_automatic_rc_releases == 'true' }}
+        # https://github.com/actions/github-script/releases
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          BRANCH: ${{ github.event.workflow_run.head_branch || github.ref_name }}
+        with:
+          script: |
+            const scriptPath = `${process.env.GITHUB_WORKSPACE}/.github/workflows/scripts/generate-rc-tag.js`;
+            const { default: script } = await import(scriptPath);
+            await script({github, context, core, process});
+
+      - name: Create and Push RC Tag
+        id: create-push-rc-tag
+        if: ${{ needs.setup.outputs.feature_automatic_rc_releases == 'true' }}
+        # https://github.com/actions/github-script/releases
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          TAG: ${{ steps.generate-rc-tag.outputs.tag }}
+          SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+          CREATE_REF: 'true'
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const scriptPath = `${process.env.GITHUB_WORKSPACE}/.github/workflows/scripts/create-push-tag.js`;
+            const { default: script } = await import(scriptPath);
+            await script({github, context, core, process});
+
+      - name: Checkout New Tag
+        id: checkout-new-tag
+        if: ${{ needs.setup.outputs.feature_automatic_rc_releases == 'true' }}
+        # https://github.com/actions/checkout/releases
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ steps.generate-rc-tag.outputs.tag }}
+          path: tags/${{ steps.generate-rc-tag.outputs.tag }}
+          fetch-depth: 0
+
+      - name: Prepare Release Directory
+        id: prepare-release-dir
+        if: ${{ needs.setup.outputs.feature_automatic_rc_releases == 'true' }}
+        env:
+          WORKSPACE: ${{ github.workspace }}
+          TAG: ${{ steps.generate-rc-tag.outputs.tag }}
+        run: .github/workflows/scripts/nix-run.sh bash .github/workflows/scripts/prepare-release-dir.sh
+
+      - name: Retrieve GPG Credentials
+        id: retrieve-gpg-credentials
+        if: ${{ needs.setup.outputs.feature_automatic_rc_releases == 'true' }}
+        # https://github.com/rancher-eio/read-vault-secrets/commits
+        uses: rancher-eio/read-vault-secrets@4c8f4e741954651c502bb7739c46ae1bad26b44d # @main
+        with:
+          secrets: |
+            secret/data/github/repo/${{ github.repository }}/signing/gpg passphrase | GPG_PASSPHRASE ;
+            secret/data/github/repo/${{ github.repository }}/signing/gpg privateKeyId | GPG_KEY_ID ;
+            secret/data/github/repo/${{ github.repository }}/signing/gpg privateKey | GPG_KEY
+
+      - name: Setup Go
+        id: setup-go
+        if: ${{ needs.setup.outputs.feature_automatic_rc_releases == 'true' && hashFiles(format('./tags/{0}/go.mod', steps.generate-rc-tag.outputs.tag)) != '' }}
+        # https://github.com/actions/setup-go/releases
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: ./tags/${{ steps.generate-rc-tag.outputs.tag }}/go.mod
+          cache-dependency-path: ./tags/${{ steps.generate-rc-tag.outputs.tag }}/go.sum
+          cache: true
+
+      - name: Run GoReleaser (RC)
+        id: run-goreleaser-rc
+        if: ${{ needs.setup.outputs.feature_automatic_rc_releases == 'true' }}
+        working-directory: tags/${{ steps.generate-rc-tag.outputs.tag }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GPG_PASSPHRASE: ${{ env.GPG_PASSPHRASE }}
+          GPG_KEY_ID: ${{ env.GPG_KEY_ID }}
+          GPG_KEY: ${{ env.GPG_KEY }}
+          GORELEASER_CONFIG_FILE: ${{ github.workspace }}/.goreleaser_rc.yml
+        run: .github/workflows/scripts/nix-run.sh bash .github/workflows/scripts/goreleaser.sh
+
+      - name: Publish RC Release
+        id: publish-rc-release
+        if: ${{ needs.setup.outputs.feature_automatic_rc_releases == 'true' }}
+        # https://github.com/actions/github-script/releases
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          VERSION: ${{ steps.generate-rc-tag.outputs.tag }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const scriptPath = `${process.env.GITHUB_WORKSPACE}/.github/workflows/scripts/publish-release.js`;
+            const { default: script } = await import(scriptPath);
+            await script({github, context, core, process});

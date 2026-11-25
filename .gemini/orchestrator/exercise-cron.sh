@@ -36,26 +36,29 @@ parse_args() {
 run_exercise() {
   local script_dir
   script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
-  local project_dir="${script_dir}/.."
-  local repo_root="${project_dir}/.."
+  local repo_root="$(cd "${script_dir}/../.." >/dev/null 2>&1 && pwd)"
 
-  # Source environment variables for headless cron execution
-  if [[ -f "${repo_root}/.dev/variables.sh" ]]; then
-    # shellcheck disable=SC1091,SC1090
-    source "${repo_root}/.dev/variables.sh"
-  elif [[ -f "${repo_root}/.variables" ]]; then
-    # shellcheck disable=SC1091,SC1090
-    source "${repo_root}/.variables"
-  fi
-  if [[ -f "${HOME}/.config/gemini/default" ]]; then
-    # shellcheck disable=SC1091,SC1090
-    source "${HOME}/.config/gemini/default"
+  # Ensure Nix binaries are reachable in non-interactive cron environments
+  export PATH="${HOME}/.nix-profile/bin:/nix/var/nix/profiles/default/bin:${PATH}"
+
+  local run_in_nix="${repo_root}/.dev/nix-run.sh"
+  if [[ ! -x "${run_in_nix}" && -x "${repo_root}/nix-run.sh" ]]; then
+    run_in_nix="${repo_root}/nix-run.sh"
+  elif [[ ! -x "${run_in_nix}" && -x "${repo_root}/.dev/run-in-nix.sh" ]]; then
+    run_in_nix="${repo_root}/.dev/run-in-nix.sh"
+  elif [[ ! -x "${run_in_nix}" && -x "${repo_root}/run-in-nix.sh" ]]; then
+    run_in_nix="${repo_root}/run-in-nix.sh"
   fi
 
-  cd "${project_dir}"
+  if [[ ! -x "${run_in_nix}" ]]; then
+    echo "Error: run-in-nix script not found or not executable" >&2
+    exit 1
+  fi
 
-  # Execute exercise-agents.js directly
-  node "${script_dir}/exercise-agents.js"
+  cd "${repo_root}"
+
+  # Execute exercise-agents.js within the Nix environment
+  "${run_in_nix}" node "${script_dir}/exercise-agents.js"
 }
 
 main() {

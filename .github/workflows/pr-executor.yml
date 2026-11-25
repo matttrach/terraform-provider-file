@@ -24,7 +24,6 @@ jobs:
       pull-requests: write
       issues: write
       checks: read
-      copilot-requests: write
     steps:
       - name: Checkout Repository
         id: checkout-repository
@@ -80,7 +79,6 @@ jobs:
       id-token: write
       pull-requests: write
       issues: write
-      copilot-requests: write
     steps:
       - name: Checkout Repository
         id: checkout-repository

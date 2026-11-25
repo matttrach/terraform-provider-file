@@ -9,8 +9,30 @@ on:
 permissions: {}
 
 jobs:
+  setup:
+    name: 'Setup Configuration'
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/rancher/ci-image/nix:20260603-18
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    outputs:
+      feature_automatic_changelog_and_release: ${{ steps.parse-config.outputs.feature_automatic_changelog_and_release }}
+      feature_automatic_backporting: ${{ steps.parse-config.outputs.feature_automatic_backporting }}
+      feature_automatic_rc_releases: ${{ steps.parse-config.outputs.feature_automatic_rc_releases }}
+      backport_branches: ${{ steps.parse-config.outputs.backport_branches }}
+      rc_release_branches: ${{ steps.parse-config.outputs.rc_release_branches }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Parse Configuration
+        id: parse-config
+        run: .github/workflows/scripts/nix-run.sh bash .github/workflows/scripts/parse-config.sh .github/repo-config.yml
+
   release-please:
     name: 'Release Please'
+    needs: setup
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/rancher/ci-image/nix:20260603-18
@@ -23,8 +45,15 @@ jobs:
       release_created: ${{ steps.release-please.outputs.release_created || steps.release-please.outputs['.--release_created'] }}
       body: ${{ steps.release-please.outputs.body || steps.release-please.outputs['.--body'] }}
     steps:
+      - name: Graceful Passing Check
+        if: ${{ needs.setup.outputs.feature_automatic_changelog_and_release != 'true' }}
+        run: |
+          echo "Automatic changelog and release feature is disabled in .github/repo-config.yml. Passing gracefully."
+          exit 0
+
       - name: Checkout Repository
         id: checkout-repository
+        if: ${{ needs.setup.outputs.feature_automatic_changelog_and_release == 'true' }}
         # https://github.com/actions/checkout/releases
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -32,6 +61,7 @@ jobs:
 
       - name: Release Please
         id: release-please
+        if: ${{ needs.setup.outputs.feature_automatic_changelog_and_release == 'true' }}
         # https://github.com/googleapis/release-please-action/releases
         uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
         with:
@@ -42,6 +72,7 @@ jobs:
 
       - name: Verify Release Please Action
         id: verify-release-please
+        if: ${{ needs.setup.outputs.feature_automatic_changelog_and_release == 'true' }}
         env:
           RELEASE_CREATED: ${{ steps.release-please.outputs.release_created || steps.release-please.outputs['.--release_created'] }}
           PR: ${{ steps.release-please.outputs.pr || steps.release-please.outputs['.--pr'] }}
@@ -57,8 +88,9 @@ jobs:
   release:
     name: 'Full Release'
     needs:
+      - setup
       - release-please
-    if: needs.release-please.outputs.release_created == 'true'
+    if: needs.setup.outputs.feature_automatic_changelog_and_release == 'true' && needs.release-please.outputs.release_created == 'true'
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/rancher/ci-image/nix:20260603-18
@@ -80,6 +112,7 @@ jobs:
         run: .github/workflows/scripts/nix-run.sh bash .github/workflows/scripts/create-local-tag.sh "${{ needs.release-please.outputs.version }}"
       - name: Setup Go
         id: setup-go
+        if: ${{ hashFiles('go.mod') != '' }}
         # https://github.com/actions/setup-go/releases
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
